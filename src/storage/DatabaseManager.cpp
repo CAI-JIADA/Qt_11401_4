@@ -3,6 +3,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QUuid>
+#include <QDebug>
 
 DatabaseManager& DatabaseManager::instance()
 {
@@ -143,7 +144,9 @@ bool DatabaseManager::createFTSIndex()
             content_rowid='rowid'
         )
     )")) {
-        // FTS5 可能不可用，忽略錯誤
+        // FTS5 可能不可用，記錄錯誤訊息後繼續執行
+        qWarning() << "FTS5 not available, full-text search will use LIKE fallback:" 
+                   << query.lastError().text();
         return true;
     }
 

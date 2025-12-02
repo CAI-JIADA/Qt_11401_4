@@ -37,7 +37,9 @@ inline QString platformToString(Platform platform) {
  * @param str 平台名稱字串
  * @return 平台類型
  */
-inline Platform stringToPlatform(const QString& str) {
+inline Platform stringToPlatform(const QString& str, bool* ok = nullptr) {
+    if (ok) *ok = true;
+    
     if (str == QStringLiteral("Google")) {
         return Platform::Google;
     } else if (str == QStringLiteral("Apple")) {
@@ -45,7 +47,9 @@ inline Platform stringToPlatform(const QString& str) {
     } else if (str == QStringLiteral("Outlook")) {
         return Platform::Outlook;
     }
-    return Platform::Google; // 預設值
+    
+    if (ok) *ok = false;
+    return Platform::Google; // 預設值，如果需要檢查轉換是否成功，請使用 ok 參數
 }
 
 #endif // PLATFORM_H
