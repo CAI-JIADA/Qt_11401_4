@@ -433,6 +433,17 @@ brew install qt@6
 #include <QAuthenticator>
 #include <QXmlStreamReader>
 #include <QSslConfiguration>
+#include <QDateTime>
+#include <QUrl>
+
+// 行事曆資訊結構
+struct CalendarInfo {
+    QString url;           // CalDAV URL
+    QString displayName;   // 顯示名稱
+    QString description;   // 描述
+    QString color;         // 顏色 (hex)
+    QStringList supportedComponents; // 支援的元件 (VEVENT, VTODO 等)
+};
 
 class CalDAVClient : public QObject {
     Q_OBJECT
@@ -619,32 +630,29 @@ void CalDAVClient::handleAuthenticationRequired(QNetworkReply* reply,
 
 void CalDAVClient::handleSslErrors(QNetworkReply* reply,
                                    const QList<QSslError>& errors) {
-    // 生產環境中應該妥善處理 SSL 錯誤
-    // 僅接受特定的預期錯誤，而非全部忽略
+    // iCloud (caldav.icloud.com) 使用正規的 SSL 憑證
+    // 不應該接受自簽憑證或不受信任的憑證
     
-    bool hasUnexpectedError = false;
+    // 記錄所有 SSL 錯誤
     for (const QSslError& error : errors) {
-        // 記錄錯誤
         qWarning() << "SSL Error:" << error.errorString();
-        
-        // 檢查是否為預期的錯誤類型
-        // 在生產環境中，應該只接受特定的證書或錯誤
-        if (error.error() != QSslError::SelfSignedCertificate &&
-            error.error() != QSslError::CertificateUntrusted) {
-            hasUnexpectedError = true;
-        }
+        qWarning() << "Certificate:" << error.certificate().subjectInfo(QSslCertificate::CommonName);
     }
     
-    // 在開發環境中可以忽略，但生產環境中應該中止連線
-    if (!hasUnexpectedError) {
-        // 僅在開發/測試環境中使用
-        qDebug() << "Ignoring SSL errors for development/testing";
-        reply->ignoreSslErrors();
-    } else {
-        // 生產環境：中止連線並回報錯誤
-        emit errorOccurred("SSL certificate validation failed");
-        reply->abort();
-    }
+    // 對於 iCloud，應該要求完全有效的 SSL 憑證
+    // 不接受任何 SSL 錯誤以防止中間人攻擊
+    
+    // 如果確實需要處理某些特定情況（如企業代理伺服器）
+    // 應該要求使用者明確配置並驗證憑證指紋
+    
+    emit errorOccurred(QString("SSL 憑證驗證失敗: %1").arg(
+        errors.isEmpty() ? "Unknown" : errors.first().errorString()));
+    
+    // 不呼叫 reply->ignoreSslErrors() 以確保安全
+    // reply->abort(); // 可選：立即中止連線
+    
+    // 注意：在測試環境中如果需要忽略 SSL 錯誤，
+    // 應該透過明確的配置選項啟用，而非在程式碼中預設啟用
 }
 ```
 
