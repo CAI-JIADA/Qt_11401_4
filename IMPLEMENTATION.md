@@ -149,10 +149,12 @@ struct CalDAVConfig {
 主機: caldav.icloud.com
 端口: 443 (HTTPS)
 協議: CalDAV over HTTPS
-基礎路徑: /{Apple_ID_去掉@及後面部分}/calendars/
+基礎路徑: /{Apple_ID_username}/calendars/
 
+說明：基礎路徑使用 Apple ID 中 @ 符號前的部分
 範例:
 - Apple ID: user@example.com
+- Apple ID username: user
 - 基礎路徑: /user/calendars/
 ```
 
@@ -192,6 +194,9 @@ private:
     QString m_baseUrl;
     QString m_username;
     QString m_password;
+    QString m_server;      // caldav.icloud.com
+    quint16 m_port;        // 443
+    QString m_basePath;    // /{username}/calendars/
     
     // CalDAV HTTP 方法實作
     void sendPropfind(const QString& path, int depth = 1);
@@ -523,9 +528,18 @@ void CalDAVClient::discoverService() {
 }
 
 void CalDAVClient::discoverCalendars() {
-    // 假設已知 principal URL
-    QString principalUrl = m_baseUrl + "/" + 
-                          m_username.left(m_username.indexOf('@')) + "/";
+    // 方法 1: 使用自動發現 (推薦)
+    // 先呼叫 discoverService() 來自動發現正確的路徑
+    
+    // 方法 2: 手動建構 URL (需要正確的 username)
+    // 從 email 中提取 username (@ 之前的部分)
+    QString username = m_username.left(m_username.indexOf('@'));
+    if (username.isEmpty()) {
+        emit errorOccurred("Invalid Apple ID format");
+        return;
+    }
+    
+    QString principalUrl = m_baseUrl + "/" + username + "/";
     
     QByteArray propfindXml = 
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
@@ -605,13 +619,32 @@ void CalDAVClient::handleAuthenticationRequired(QNetworkReply* reply,
 
 void CalDAVClient::handleSslErrors(QNetworkReply* reply,
                                    const QList<QSslError>& errors) {
-    // 在生產環境中，應該妥善處理 SSL 錯誤
-    // 這裡僅作為範例
+    // 生產環境中應該妥善處理 SSL 錯誤
+    // 僅接受特定的預期錯誤，而非全部忽略
+    
+    bool hasUnexpectedError = false;
     for (const QSslError& error : errors) {
+        // 記錄錯誤
         qWarning() << "SSL Error:" << error.errorString();
+        
+        // 檢查是否為預期的錯誤類型
+        // 在生產環境中，應該只接受特定的證書或錯誤
+        if (error.error() != QSslError::SelfSignedCertificate &&
+            error.error() != QSslError::CertificateUntrusted) {
+            hasUnexpectedError = true;
+        }
     }
-    // 注意：忽略 SSL 錯誤在生產環境中不安全
-    reply->ignoreSslErrors();
+    
+    // 在開發環境中可以忽略，但生產環境中應該中止連線
+    if (!hasUnexpectedError) {
+        // 僅在開發/測試環境中使用
+        qDebug() << "Ignoring SSL errors for development/testing";
+        reply->ignoreSslErrors();
+    } else {
+        // 生產環境：中止連線並回報錯誤
+        emit errorOccurred("SSL certificate validation failed");
+        reply->abort();
+    }
 }
 ```
 
@@ -679,8 +712,40 @@ private:
     }
     
     static QDateTime parseDateTime(const QString& dtString) {
-        // 處理 iCalendar 日期格式 (例如: 20240101T120000Z)
-        return QDateTime::fromString(dtString, "yyyyMMddTHHmmssZ");
+        // 處理多種 iCalendar 日期格式
+        
+        // 1. UTC 格式: 20240101T120000Z
+        QDateTime dt = QDateTime::fromString(dtString, "yyyyMMddTHHmmss'Z'");
+        if (dt.isValid()) {
+            dt.setTimeSpec(Qt::UTC);
+            return dt;
+        }
+        
+        // 2. 本地時間格式: 20240101T120000
+        dt = QDateTime::fromString(dtString, "yyyyMMddTHHmmss");
+        if (dt.isValid()) {
+            return dt;
+        }
+        
+        // 3. 全天事件格式: 20240101
+        QDate date = QDate::fromString(dtString, "yyyyMMdd");
+        if (date.isValid()) {
+            return QDateTime(date, QTime(0, 0, 0));
+        }
+        
+        // 4. 帶時區的格式 (TZID 需要額外處理)
+        // 這裡簡化處理，實際應用中應該解析 VTIMEZONE
+        if (dtString.contains("TZID=")) {
+            // 提取日期時間部分 (TZID=Asia/Taipei:20240101T120000)
+            int colonPos = dtString.indexOf(':');
+            if (colonPos > 0) {
+                QString dateTimePart = dtString.mid(colonPos + 1);
+                return parseDateTime(dateTimePart);
+            }
+        }
+        
+        qWarning() << "Unable to parse iCalendar date:" << dtString;
+        return QDateTime();
     }
 };
 ```
