@@ -706,8 +706,8 @@ public:
             event.dtEnd = parseDateTime(dtEnd);
             
             // 檢查是否為全天事件
-            // 全天事件的日期格式為 YYYYMMDD（無時間部分）
-            event.isAllDay = dtStart.length() == 8; // YYYYMMDD 格式
+            // 全天事件的日期格式為 YYYYMMDD（無時間部分，不含 'T'）
+            event.isAllDay = !dtStart.contains('T') && dtStart.length() == 8;
             
             events.append(event);
         }
@@ -719,7 +719,9 @@ private:
     static QString extractFieldWithParams(const QString& block, 
                                          const QString& fieldName) {
         // 處理帶參數的欄位，例如 DTSTART;TZID=Asia/Taipei:20240101T120000
-        QRegularExpression regex(fieldName + "[^:]*:(.*)");
+        // 提取冒號後的值（日期時間部分），參數信息會被忽略
+        // 注意：此函數僅返回日期時間值，時區資訊需另外處理
+        QRegularExpression regex(fieldName + "[^:]*:([^\r\n]*)$");
         QRegularExpressionMatch match = regex.match(block);
         if (match.hasMatch()) {
             return match.captured(1).trimmed();
@@ -740,6 +742,7 @@ private:
     
     static QDateTime parseDateTime(const QString& dtString) {
         // 處理多種 iCalendar 日期格式
+        // 注意：此函數接收的是純日期時間字串（已移除參數如 TZID）
         
         if (dtString.isEmpty()) {
             return QDateTime();
@@ -754,13 +757,13 @@ private:
             }
         }
         
-        // 2. 帶時區的格式: TZID=Asia/Taipei:20240101T120000
-        // 注意：這是從 extractFieldWithParams 傳來的值（已移除 DTSTART; 前綴）
+        // 2. 本地時間或帶時區的時間格式: 20240101T120000
+        // 注意：TZID 參數已在 extractFieldWithParams 中被移除
         if (dtString.contains('T')) {
-            // 本地時間格式: 20240101T120000
             QDateTime dt = QDateTime::fromString(dtString, "yyyyMMddTHHmmss");
             if (dt.isValid()) {
-                // 注意：實際應用中應該解析 VTIMEZONE 並正確處理時區
+                // 實際應用中應該從原始欄位解析 TZID 參數並套用時區
+                // 這裡簡化為本地時間處理
                 return dt;
             }
         }
