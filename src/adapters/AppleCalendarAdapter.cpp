@@ -27,8 +27,8 @@ void AppleCalendarAdapter::setCredentials(const QString& appleId,
 void AppleCalendarAdapter::authenticate() {
     qDebug() << "開始 Apple Calendar 認證...";
     
-    // 嘗試列出行事曆以驗證認證
-    m_caldavClient->discoverCalendars();
+    // 使用服務發現來找到正確的 CalDAV 端點
+    m_caldavClient->discoverService();
 }
 
 void AppleCalendarAdapter::fetchEvents(const QDateTime& start, const QDateTime& end) {

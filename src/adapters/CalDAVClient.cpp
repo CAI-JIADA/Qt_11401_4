@@ -9,6 +9,9 @@ CalDAVClient::CalDAVClient(QObject* parent)
     , m_manager(new QNetworkAccessManager(this))
     , m_server("caldav.icloud.com")
     , m_port(443)
+    , m_principalUrl("")
+    , m_calendarHomeUrl("")
+    , m_discoveryInProgress(false)
 {
     // 設定 SSL
     QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
@@ -36,6 +39,13 @@ void CalDAVClient::setServer(const QString& server, quint16 port) {
 }
 
 void CalDAVClient::discoverService() {
+    if (m_discoveryInProgress) {
+        qWarning() << "服務發現已在進行中，跳過重複請求";
+        return;
+    }
+    
+    m_discoveryInProgress = true;
+    qDebug() << "開始 CalDAV 服務發現...";
     QUrl url(m_baseUrl + "/.well-known/caldav");
     
     QByteArray propfindXml = 
@@ -46,33 +56,72 @@ void CalDAVClient::discoverService() {
         "  </d:prop>"
         "</d:propfind>";
     
-    sendPropfind(url, propfindXml, 0);
+    sendPropfindForPrincipal(url, propfindXml, 0);
 }
 
 void CalDAVClient::discoverCalendars() {
-    // 從 email 中提取 username
-    QString username = m_username.left(m_username.indexOf('@'));
-    if (username.isEmpty()) {
-        emit errorOccurred("無效的 Apple ID 格式");
+    QString targetUrl;
+    bool shouldQueryCalendars = false;
+    
+    // 優先使用已發現的 calendar home URL
+    if (!m_calendarHomeUrl.isEmpty()) {
+        targetUrl = m_baseUrl + m_calendarHomeUrl;
+        qDebug() << "使用已發現的 calendar home URL:" << targetUrl;
+        shouldQueryCalendars = true;
+        m_discoveryInProgress = false;  // 發現完成
+    }
+    // 如果有 principal URL 但還沒有 calendar home URL，查詢 calendar home
+    else if (!m_principalUrl.isEmpty() && m_discoveryInProgress) {
+        qDebug() << "使用 principal URL 查找 calendar home...";
+        
+        QByteArray propfindXml = 
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            "<d:propfind xmlns:d=\"DAV:\" "
+            "xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
+            "  <d:prop>"
+            "    <c:calendar-home-set />"
+            "  </d:prop>"
+            "</d:propfind>";
+        
+        sendPropfindForCalendarHome(QUrl(m_baseUrl + m_principalUrl), propfindXml, 0);
+        return;  // 等待 calendar home 回應
+    }
+    // Fallback: 使用從 email 提取的 username
+    else if (!m_discoveryInProgress && m_principalUrl.isEmpty()) {
+        QString username = m_username.left(m_username.indexOf('@'));
+        if (username.isEmpty()) {
+            emit errorOccurred("無效的 Apple ID 格式");
+            return;
+        }
+        
+        targetUrl = m_baseUrl + "/" + username + "/calendars/";
+        qDebug() << "使用 fallback URL:" << targetUrl;
+        shouldQueryCalendars = true;
+    }
+    else {
+        // 不應該到達這裡，但為了安全起見重置狀態
+        qWarning() << "discoverCalendars() 處於未預期的狀態";
+        m_discoveryInProgress = false;
         return;
     }
     
-    QString principalUrl = m_baseUrl + "/" + username + "/";
-    
-    QByteArray propfindXml = 
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<d:propfind xmlns:d=\"DAV:\" "
-        "xmlns:c=\"urn:ietf:params:xml:ns:caldav\" "
-        "xmlns:ical=\"http://apple.com/ns/ical/\">"
-        "  <d:prop>"
-        "    <d:resourcetype />"
-        "    <d:displayname />"
-        "    <ical:calendar-color />"
-        "    <c:calendar-description />"
-        "  </d:prop>"
-        "</d:propfind>";
-    
-    sendPropfind(QUrl(principalUrl + "calendars/"), propfindXml, 1);
+    // 如果確定要查詢行事曆，發送請求
+    if (shouldQueryCalendars) {
+        QByteArray propfindXml = 
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            "<d:propfind xmlns:d=\"DAV:\" "
+            "xmlns:c=\"urn:ietf:params:xml:ns:caldav\" "
+            "xmlns:ical=\"http://apple.com/ns/ical/\">"
+            "  <d:prop>"
+            "    <d:resourcetype />"
+            "    <d:displayname />"
+            "    <ical:calendar-color />"
+            "    <c:calendar-description />"
+            "  </d:prop>"
+            "</d:propfind>";
+        
+        sendPropfind(QUrl(targetUrl), propfindXml, 1);
+    }
 }
 
 void CalDAVClient::listCalendars() {
@@ -122,9 +171,105 @@ void CalDAVClient::sendPropfind(const QUrl& url, const QByteArray& xml, int dept
             QList<CalendarInfo> calendars = parseCalendarList(response);
             if (!calendars.isEmpty()) {
                 emit calendarsListed(calendars);
+            } else {
+                qWarning() << "未找到任何行事曆";
+                // 重置發現狀態以允許重試
+                m_discoveryInProgress = false;
+                emit errorOccurred("未找到任何行事曆");
             }
         } else {
-            emit errorOccurred(QString("PROPFIND 錯誤: %1").arg(reply->errorString()));
+            QString errorMsg = QString("PROPFIND 錯誤: %1").arg(reply->errorString());
+            qWarning() << errorMsg;
+            qWarning() << "HTTP 狀態碼:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            qWarning() << "回應內容:" << reply->readAll();
+            // 重置發現狀態以允許重試
+            m_discoveryInProgress = false;
+            emit errorOccurred(errorMsg);
+        }
+        reply->deleteLater();
+    });
+}
+
+void CalDAVClient::sendPropfindForPrincipal(const QUrl& url, const QByteArray& xml, int depth) {
+    qDebug() << "發送 PROPFIND 請求以發現 principal URL:" << url.toString();
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, 
+                     "application/xml; charset=utf-8");
+    request.setRawHeader("Depth", QByteArray::number(depth));
+    request.setRawHeader("User-Agent", "Qt CalDAV Client/1.0");
+    
+    QNetworkReply* reply = m_manager->sendCustomRequest(request, "PROPFIND", xml);
+    
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray response = reply->readAll();
+            qDebug() << "Principal PROPFIND 回應:" << response;
+            
+            QString principalUrl = parsePrincipalUrl(response);
+            if (!principalUrl.isEmpty()) {
+                m_principalUrl = principalUrl;
+                qDebug() << "發現 principal URL:" << principalUrl;
+                emit serviceDiscovered(principalUrl);
+                
+                // 繼續發現 calendar home
+                discoverCalendars();
+            } else {
+                qWarning() << "無法從回應中解析 principal URL，使用 fallback";
+                m_discoveryInProgress = false;
+                discoverCalendars();
+            }
+        } else {
+            QString errorMsg = QString("Principal 發現失敗: %1").arg(reply->errorString());
+            qWarning() << errorMsg;
+            qWarning() << "HTTP 狀態碼:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            
+            // 如果發現失敗，嘗試使用 fallback 方式
+            qWarning() << "服務發現失敗，嘗試使用 fallback 方式...";
+            m_discoveryInProgress = false;
+            discoverCalendars();
+        }
+        reply->deleteLater();
+    });
+}
+
+void CalDAVClient::sendPropfindForCalendarHome(const QUrl& url, const QByteArray& xml, int depth) {
+    qDebug() << "發送 PROPFIND 請求以發現 calendar home:" << url.toString();
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, 
+                     "application/xml; charset=utf-8");
+    request.setRawHeader("Depth", QByteArray::number(depth));
+    request.setRawHeader("User-Agent", "Qt CalDAV Client/1.0");
+    
+    QNetworkReply* reply = m_manager->sendCustomRequest(request, "PROPFIND", xml);
+    
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray response = reply->readAll();
+            qDebug() << "Calendar Home PROPFIND 回應:" << response;
+            
+            QString calendarHomeUrl = parseCalendarHomeUrl(response);
+            if (!calendarHomeUrl.isEmpty()) {
+                m_calendarHomeUrl = calendarHomeUrl;
+                qDebug() << "發現 calendar home URL:" << calendarHomeUrl;
+                
+                // 標記發現完成，繼續列出行事曆
+                m_discoveryInProgress = false;
+                discoverCalendars();
+            } else {
+                qWarning() << "無法從回應中解析 calendar home URL，使用 fallback";
+                m_discoveryInProgress = false;
+                discoverCalendars();
+            }
+        } else {
+            QString errorMsg = QString("Calendar Home 發現失敗: %1").arg(reply->errorString());
+            qWarning() << errorMsg;
+            
+            // 如果發現失敗，嘗試使用 fallback 方式
+            qWarning() << "Calendar home 發現失敗，嘗試使用 fallback 方式...";
+            m_discoveryInProgress = false;
+            discoverCalendars();
         }
         reply->deleteLater();
     });
@@ -294,6 +439,24 @@ QString CalDAVClient::parsePrincipalUrl(const QByteArray& xml) {
         
         if (reader.isStartElement() && 
             reader.name() == QStringLiteral("current-user-principal")) {
+            reader.readNext();
+            if (reader.isStartElement() && reader.name() == QStringLiteral("href")) {
+                return reader.readElementText();
+            }
+        }
+    }
+    
+    return QString();
+}
+
+QString CalDAVClient::parseCalendarHomeUrl(const QByteArray& xml) {
+    QXmlStreamReader reader(xml);
+    
+    while (!reader.atEnd()) {
+        reader.readNext();
+        
+        if (reader.isStartElement() && 
+            reader.name() == QStringLiteral("calendar-home-set")) {
             reader.readNext();
             if (reader.isStartElement() && reader.name() == QStringLiteral("href")) {
                 return reader.readElementText();

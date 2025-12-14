@@ -62,13 +62,19 @@ private:
     QString m_baseUrl;
     QString m_server;
     quint16 m_port;
+    QString m_principalUrl;      // 儲存發現的 principal URL
+    QString m_calendarHomeUrl;   // 儲存發現的 calendar home URL
+    bool m_discoveryInProgress;  // 防止重複發現
     
     // CalDAV 請求方法
     void sendPropfind(const QUrl& url, const QByteArray& xml, int depth = 1);
     void sendReport(const QUrl& url, const QByteArray& xml);
+    void sendPropfindForPrincipal(const QUrl& url, const QByteArray& xml, int depth = 0);
+    void sendPropfindForCalendarHome(const QUrl& url, const QByteArray& xml, int depth = 0);
     
     // XML 處理
     QList<CalendarInfo> parseCalendarList(const QByteArray& xml);
     QList<CalendarEvent> parseEventsFromCalDAV(const QByteArray& xml);
     QString parsePrincipalUrl(const QByteArray& xml);
+    QString parseCalendarHomeUrl(const QByteArray& xml);
 };
