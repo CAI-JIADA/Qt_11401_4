@@ -14,7 +14,9 @@ find_package(Qt6 REQUIRED COMPONENTS
     Core
     Gui
     Network
+    NetworkAuth
     Sql
+    Widgets
 )
 
 # 原始碼檔案
@@ -27,6 +29,7 @@ set(SOURCES
     src/adapters/GoogleCalendarAdapter.cpp
     src/adapters/OutlookCalendarAdapter.cpp
     src/storage/DatabaseManager.cpp
+    src/ui/MainWindow.cpp
 )
 
 set(HEADERS
@@ -38,6 +41,7 @@ set(HEADERS
     src/adapters/GoogleCalendarAdapter.h
     src/adapters/OutlookCalendarAdapter.h
     src/storage/DatabaseManager.h
+    src/ui/MainWindow.h
 )
 
 # 執行檔
@@ -51,7 +55,9 @@ target_link_libraries(CalendarIntegration
     Qt6::Core
     Qt6::Gui
     Qt6::Network
+    Qt6::NetworkAuth
     Qt6::Sql
+    Qt6::Widgets
 )
 
 # Include 目錄
