@@ -1,0 +1,54 @@
+# 建置目錄
+build/
+build-*/
+cmake-build-*/
+
+# Qt 相關
+*.pro.user
+*.pro.user.*
+*.autosave
+*.qmlc
+*.jsc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.o
+*.obj
+
+# 編譯輸出
+*.exe
+*.app
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# 資料庫
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# 測試輸出
+Testing/
+CTestTestfile.cmake
+
+# 日誌
+*.log
