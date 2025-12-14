@@ -87,7 +87,7 @@ void CalDAVClient::discoverCalendars() {
         return;  // 等待 calendar home 回應
     }
     // Fallback: 使用從 email 提取的 username
-    else if (!m_discoveryInProgress) {
+    else if (!m_discoveryInProgress && m_principalUrl.isEmpty()) {
         QString username = m_username.left(m_username.indexOf('@'));
         if (username.isEmpty()) {
             emit errorOccurred("無效的 Apple ID 格式");
@@ -99,8 +99,9 @@ void CalDAVClient::discoverCalendars() {
         shouldQueryCalendars = true;
     }
     else {
-        // 不應該到達這裡，但為了安全起見
+        // 不應該到達這裡，但為了安全起見重置狀態
         qWarning() << "discoverCalendars() 處於未預期的狀態";
+        m_discoveryInProgress = false;
         return;
     }
     
@@ -172,6 +173,8 @@ void CalDAVClient::sendPropfind(const QUrl& url, const QByteArray& xml, int dept
                 emit calendarsListed(calendars);
             } else {
                 qWarning() << "未找到任何行事曆";
+                // 重置發現狀態以允許重試
+                m_discoveryInProgress = false;
                 emit errorOccurred("未找到任何行事曆");
             }
         } else {
@@ -179,6 +182,8 @@ void CalDAVClient::sendPropfind(const QUrl& url, const QByteArray& xml, int dept
             qWarning() << errorMsg;
             qWarning() << "HTTP 狀態碼:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             qWarning() << "回應內容:" << reply->readAll();
+            // 重置發現狀態以允許重試
+            m_discoveryInProgress = false;
             emit errorOccurred(errorMsg);
         }
         reply->deleteLater();
