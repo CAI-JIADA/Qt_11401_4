@@ -61,14 +61,17 @@ void CalDAVClient::discoverService() {
 
 void CalDAVClient::discoverCalendars() {
     QString targetUrl;
+    bool shouldQueryCalendars = false;
     
     // 優先使用已發現的 calendar home URL
     if (!m_calendarHomeUrl.isEmpty()) {
         targetUrl = m_baseUrl + m_calendarHomeUrl;
         qDebug() << "使用已發現的 calendar home URL:" << targetUrl;
+        shouldQueryCalendars = true;
+        m_discoveryInProgress = false;  // 發現完成
     }
-    // 否則嘗試使用 principal URL（只在未進行發現時）
-    else if (!m_principalUrl.isEmpty() && !m_discoveryInProgress) {
+    // 如果有 principal URL 但還沒有 calendar home URL，查詢 calendar home
+    else if (!m_principalUrl.isEmpty() && m_discoveryInProgress) {
         qDebug() << "使用 principal URL 查找 calendar home...";
         
         QByteArray propfindXml = 
@@ -81,15 +84,10 @@ void CalDAVClient::discoverCalendars() {
             "</d:propfind>";
         
         sendPropfindForCalendarHome(QUrl(m_baseUrl + m_principalUrl), propfindXml, 0);
-        return;
+        return;  // 等待 calendar home 回應
     }
-    // 如果發現正在進行且沒有找到 URL，等待發現完成
-    else if (m_discoveryInProgress) {
-        qDebug() << "等待服務發現完成...";
-        return;
-    }
-    // 最後才使用從 email 提取的 username (fallback)
-    else {
+    // Fallback: 使用從 email 提取的 username
+    else if (!m_discoveryInProgress) {
         QString username = m_username.left(m_username.indexOf('@'));
         if (username.isEmpty()) {
             emit errorOccurred("無效的 Apple ID 格式");
@@ -98,22 +96,31 @@ void CalDAVClient::discoverCalendars() {
         
         targetUrl = m_baseUrl + "/" + username + "/calendars/";
         qDebug() << "使用 fallback URL:" << targetUrl;
+        shouldQueryCalendars = true;
+    }
+    else {
+        // 不應該到達這裡，但為了安全起見
+        qWarning() << "discoverCalendars() 處於未預期的狀態";
+        return;
     }
     
-    QByteArray propfindXml = 
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<d:propfind xmlns:d=\"DAV:\" "
-        "xmlns:c=\"urn:ietf:params:xml:ns:caldav\" "
-        "xmlns:ical=\"http://apple.com/ns/ical/\">"
-        "  <d:prop>"
-        "    <d:resourcetype />"
-        "    <d:displayname />"
-        "    <ical:calendar-color />"
-        "    <c:calendar-description />"
-        "  </d:prop>"
-        "</d:propfind>";
-    
-    sendPropfind(QUrl(targetUrl), propfindXml, 1);
+    // 如果確定要查詢行事曆，發送請求
+    if (shouldQueryCalendars) {
+        QByteArray propfindXml = 
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+            "<d:propfind xmlns:d=\"DAV:\" "
+            "xmlns:c=\"urn:ietf:params:xml:ns:caldav\" "
+            "xmlns:ical=\"http://apple.com/ns/ical/\">"
+            "  <d:prop>"
+            "    <d:resourcetype />"
+            "    <d:displayname />"
+            "    <ical:calendar-color />"
+            "    <c:calendar-description />"
+            "  </d:prop>"
+            "</d:propfind>";
+        
+        sendPropfind(QUrl(targetUrl), propfindXml, 1);
+    }
 }
 
 void CalDAVClient::listCalendars() {
@@ -200,15 +207,8 @@ void CalDAVClient::sendPropfindForPrincipal(const QUrl& url, const QByteArray& x
                 qDebug() << "發現 principal URL:" << principalUrl;
                 emit serviceDiscovered(principalUrl);
                 
-                // 繼續發現 calendar home（只在第一次成功時）
-                if (!m_calendarHomeUrl.isEmpty()) {
-                    // 如果已有 calendar home，直接查詢行事曆
-                    m_discoveryInProgress = false;
-                    discoverCalendars();
-                } else {
-                    // 需要先發現 calendar home
-                    discoverCalendars();
-                }
+                // 繼續發現 calendar home
+                discoverCalendars();
             } else {
                 qWarning() << "無法從回應中解析 principal URL，使用 fallback";
                 m_discoveryInProgress = false;
