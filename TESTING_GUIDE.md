@@ -35,7 +35,7 @@
 
 2. **更新 main.cpp 中的憑證**
    ```cpp
-   // 在 src/main.cpp 第 35-36 行
+   // 在 src/main.cpp 中搜尋以下行並更新
    QString appleId = "your-apple-id@example.com";  // 改為您的 Apple ID
    QString appPassword = "xxxx-xxxx-xxxx-xxxx";    // 改為應用程式專用密碼
    ```
