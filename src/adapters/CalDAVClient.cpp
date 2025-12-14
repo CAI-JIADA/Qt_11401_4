@@ -11,6 +11,7 @@ CalDAVClient::CalDAVClient(QObject* parent)
     , m_port(443)
     , m_principalUrl("")
     , m_calendarHomeUrl("")
+    , m_discoveryInProgress(false)
 {
     // 設定 SSL
     QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
@@ -38,6 +39,12 @@ void CalDAVClient::setServer(const QString& server, quint16 port) {
 }
 
 void CalDAVClient::discoverService() {
+    if (m_discoveryInProgress) {
+        qWarning() << "服務發現已在進行中，跳過重複請求";
+        return;
+    }
+    
+    m_discoveryInProgress = true;
     qDebug() << "開始 CalDAV 服務發現...";
     QUrl url(m_baseUrl + "/.well-known/caldav");
     
@@ -60,8 +67,8 @@ void CalDAVClient::discoverCalendars() {
         targetUrl = m_baseUrl + m_calendarHomeUrl;
         qDebug() << "使用已發現的 calendar home URL:" << targetUrl;
     }
-    // 否則嘗試使用 principal URL
-    else if (!m_principalUrl.isEmpty()) {
+    // 否則嘗試使用 principal URL（只在未進行發現時）
+    else if (!m_principalUrl.isEmpty() && !m_discoveryInProgress) {
         qDebug() << "使用 principal URL 查找 calendar home...";
         
         QByteArray propfindXml = 
@@ -74,6 +81,11 @@ void CalDAVClient::discoverCalendars() {
             "</d:propfind>";
         
         sendPropfindForCalendarHome(QUrl(m_baseUrl + m_principalUrl), propfindXml, 0);
+        return;
+    }
+    // 如果發現正在進行且沒有找到 URL，等待發現完成
+    else if (m_discoveryInProgress) {
+        qDebug() << "等待服務發現完成...";
         return;
     }
     // 最後才使用從 email 提取的 username (fallback)
@@ -188,10 +200,19 @@ void CalDAVClient::sendPropfindForPrincipal(const QUrl& url, const QByteArray& x
                 qDebug() << "發現 principal URL:" << principalUrl;
                 emit serviceDiscovered(principalUrl);
                 
-                // 繼續發現 calendar home
-                discoverCalendars();
+                // 繼續發現 calendar home（只在第一次成功時）
+                if (!m_calendarHomeUrl.isEmpty()) {
+                    // 如果已有 calendar home，直接查詢行事曆
+                    m_discoveryInProgress = false;
+                    discoverCalendars();
+                } else {
+                    // 需要先發現 calendar home
+                    discoverCalendars();
+                }
             } else {
-                emit errorOccurred("無法從回應中解析 principal URL");
+                qWarning() << "無法從回應中解析 principal URL，使用 fallback";
+                m_discoveryInProgress = false;
+                discoverCalendars();
             }
         } else {
             QString errorMsg = QString("Principal 發現失敗: %1").arg(reply->errorString());
@@ -200,6 +221,7 @@ void CalDAVClient::sendPropfindForPrincipal(const QUrl& url, const QByteArray& x
             
             // 如果發現失敗，嘗試使用 fallback 方式
             qWarning() << "服務發現失敗，嘗試使用 fallback 方式...";
+            m_discoveryInProgress = false;
             discoverCalendars();
         }
         reply->deleteLater();
@@ -227,10 +249,13 @@ void CalDAVClient::sendPropfindForCalendarHome(const QUrl& url, const QByteArray
                 m_calendarHomeUrl = calendarHomeUrl;
                 qDebug() << "發現 calendar home URL:" << calendarHomeUrl;
                 
-                // 繼續列出行事曆
+                // 標記發現完成，繼續列出行事曆
+                m_discoveryInProgress = false;
                 discoverCalendars();
             } else {
-                emit errorOccurred("無法從回應中解析 calendar home URL");
+                qWarning() << "無法從回應中解析 calendar home URL，使用 fallback";
+                m_discoveryInProgress = false;
+                discoverCalendars();
             }
         } else {
             QString errorMsg = QString("Calendar Home 發現失敗: %1").arg(reply->errorString());
@@ -238,6 +263,7 @@ void CalDAVClient::sendPropfindForCalendarHome(const QUrl& url, const QByteArray
             
             // 如果發現失敗，嘗試使用 fallback 方式
             qWarning() << "Calendar home 發現失敗，嘗試使用 fallback 方式...";
+            m_discoveryInProgress = false;
             discoverCalendars();
         }
         reply->deleteLater();
