@@ -312,9 +312,10 @@ void MainWindow::onSearchTextChanged(const QString& text) {
 void MainWindow::onEventSelected(QListWidgetItem* item) {
     if (!item) return;
     
+    // 使用顯示的事件列表，而非所有事件
     int index = m_eventList->row(item);
-    if (index >= 0 && index < m_currentEvents.size()) {
-        showEventDetails(m_currentEvents[index]);
+    if (index >= 0 && index < m_displayedEvents.size()) {
+        showEventDetails(m_displayedEvents[index]);
     }
 }
 
@@ -337,6 +338,7 @@ void MainWindow::onErrorOccurred(const QString& error) {
 
 void MainWindow::updateEventList(const QList<CalendarEvent>& events) {
     m_eventList->clear();
+    m_displayedEvents.clear();  // 清除顯示的事件列表
     
     QString platformFilter = m_platformFilter->currentText();
     
@@ -353,6 +355,9 @@ void MainWindow::updateEventList(const QList<CalendarEvent>& events) {
                 continue;
             }
         }
+        
+        // 將事件加入顯示列表
+        m_displayedEvents.append(event);
         
         QString itemText = QString("%1 - %2")
             .arg(event.startTime.toString("yyyy-MM-dd hh:mm"))

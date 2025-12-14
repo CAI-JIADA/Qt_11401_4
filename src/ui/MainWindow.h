@@ -60,7 +60,8 @@ private:
     DatabaseManager* m_dbManager;
     
     // 資料
-    QList<CalendarEvent> m_currentEvents;
+    QList<CalendarEvent> m_currentEvents;  // 所有事件
+    QList<CalendarEvent> m_displayedEvents;  // 目前顯示的事件（已過濾）
     bool m_googleAuthenticated;
     bool m_outlookAuthenticated;
 };
