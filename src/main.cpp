@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
     // 2. 登入您的 Apple ID
     // 3. 在「安全性」區段中選擇「應用程式專用密碼」
     // 4. 產生新密碼
-    QString appleId = "redmaqic@icloud.com";  // 請替換
-    QString appPassword = "yqes-icxv-rbti-ryga";    // 請替換
+    QString appleId = "your-apple-id@example.com";  // 請替換為您的 Apple ID
+    QString appPassword = "xxxx-xxxx-xxxx-xxxx";    // 請替換為應用程式專用密碼
     
     if (appleId == "your-apple-id@example.com") {
         qWarning() << "";
