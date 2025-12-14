@@ -1,6 +1,6 @@
 # 測試指南 - Qt 多平台行事曆整合工具
 
-本文件說明如何測試 Apple Calendar (iCloud) 整合功能。
+本文件說明如何測試 Google Calendar 和 Microsoft Outlook 整合功能。
 
 ---
 
@@ -9,9 +9,11 @@
 1. [環境需求](#環境需求)
 2. [準備工作](#準備工作)
 3. [建置步驟](#建置步驟)
-4. [測試步驟](#測試步驟)
-5. [常見問題排除](#常見問題排除)
-6. [測試檢查清單](#測試檢查清單)
+4. [Google Calendar 測試步驟](#google-calendar-測試步驟)
+5. [Microsoft Outlook 測試步驟](#microsoft-outlook-測試步驟)
+6. [UI 測試步驟](#ui-測試步驟)
+7. [常見問題排除](#常見問題排除)
+8. [測試檢查清單](#測試檢查清單)
 
 ---
 
@@ -32,13 +34,6 @@
 - ✅ Linux (Ubuntu 20.04+, Fedora 35+, 其他主流發行版)
 - ✅ macOS 11+
 
-### Apple 帳號需求
-
-- ✅ 有效的 Apple ID 帳號（免費）
-- ✅ 已啟用雙重認證
-- ❌ **不需要** Apple Developer Program ($99/年)
-- ❌ **不需要** Mac 電腦
-
 ---
 
 ## 準備工作
@@ -54,6 +49,8 @@
 # 安裝時選擇以下元件：
 # - Qt 6.x for MSVC 2019 64-bit
 # - Qt Network
+# - Qt NetworkAuth
+# - Qt Widgets
 # - Qt SQL
 # - CMake
 ```
@@ -63,7 +60,7 @@
 ```bash
 # 安裝 Qt 6
 sudo apt update
-sudo apt install -y qt6-base-dev qt6-base-dev-tools cmake build-essential
+sudo apt install -y qt6-base-dev qt6-base-dev-tools qt6-networkauth-dev cmake build-essential
 
 # 驗證安裝
 qmake6 --version
@@ -84,41 +81,6 @@ source ~/.zshrc
 qmake --version
 ```
 
-### 2. 取得 Apple 應用程式專用密碼
-
-這是測試的**關鍵步驟**！
-
-#### 步驟：
-
-1. **登入 Apple ID 帳號管理**
-   - 前往 https://appleid.apple.com
-   - 使用您的 Apple ID 登入
-
-2. **進入安全性設定**
-   - 在帳號頁面中，找到「安全性」(Security) 區段
-   - 確認已啟用「雙重認證」(Two-Factor Authentication)
-   - 如果尚未啟用，請先啟用雙重認證
-
-3. **產生應用程式專用密碼**
-   - 在「安全性」區段中，找到「應用程式專用密碼」(App-Specific Passwords)
-   - 點選「產生密碼」(Generate Password)
-   - 輸入密碼用途的標籤，例如：「Calendar Integration Test」
-   - 系統會顯示一組格式為 `xxxx-xxxx-xxxx-xxxx` 的密碼
-   - **重要**：立即複製並儲存這個密碼，因為它只會顯示一次
-
-4. **記錄認證資訊**
-   ```
-   Apple ID: your-email@example.com
-   應用程式專用密碼: abcd-efgh-ijkl-mnop
-   ```
-
-#### 注意事項
-
-- ⚠️ 應用程式專用密碼與您的 Apple ID 密碼不同
-- ⚠️ 絕對不要在程式中使用 Apple ID 密碼
-- ✅ 應用程式專用密碼可以隨時撤銷
-- ✅ 可以為不同的應用產生多個密碼
-
 ---
 
 ## 建置步驟
@@ -127,31 +89,11 @@ qmake --version
 
 ```bash
 # 克隆專案
-git clone https://github.com/CAI-JIADA/Calender.git
-cd Calender
-
-# 切換到開發分支（如果需要）
-git checkout copilot/integrate-apple-calendar-without-mac-again
+git clone https://github.com/CAI-JIADA/Qt_11401_4.git
+cd Qt_11401_4
 ```
 
-### 2. 設定認證資訊
-
-編輯 `src/main.cpp`，找到以下行並替換為您的資訊：
-
-```cpp
-// 第 29-30 行
-QString appleId = "your-apple-id@example.com";  // 替換為您的 Apple ID
-QString appPassword = "xxxx-xxxx-xxxx-xxxx";    // 替換為應用程式專用密碼
-```
-
-例如：
-
-```cpp
-QString appleId = "john.doe@icloud.com";
-QString appPassword = "abcd-efgh-ijkl-mnop";
-```
-
-### 3. 建置專案
+### 2. 建置專案
 
 #### Windows
 
@@ -168,11 +110,8 @@ cmake --build . --config Release
 
 # 執行檔位置
 cd Release
-
-# 注意：所有必要的 Qt DLL 已自動複製，可直接執行
+./CalendarIntegration.exe
 ```
-
-> **💡 提示**: CMake 會在建置時自動執行 `windeployqt`，將所有必要的 Qt DLL (Qt6Core.dll, Qt6Gui.dll, Qt6Network.dll, Qt6Sql.dll 等) 複製到 Release 目錄，無需手動部署。
 
 #### Linux
 
@@ -187,7 +126,8 @@ cmake .. -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/qt6
 # 建置（使用多核心加速）
 make -j$(nproc)
 
-# 執行檔位置：./CalendarIntegration
+# 執行
+./CalendarIntegration
 ```
 
 #### macOS
@@ -203,560 +143,303 @@ cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@6
 # 建置
 make -j$(sysctl -n hw.ncpu)
 
-# 執行檔位置：./CalendarIntegration
-```
-
-### 4. 執行程式
-
-```bash
-# Windows
-.\CalendarIntegration.exe
-
-# Linux/macOS
+# 執行
 ./CalendarIntegration
 ```
 
 ---
 
-## 測試步驟
+## Google Calendar 測試步驟
 
-### 測試 1：基本連線測試
+### 前置準備：設定 Google Cloud 專案
 
-**目的**：驗證程式能否成功連接到 iCloud CalDAV 伺服器。
+#### 步驟 1：建立 Google Cloud 專案
 
-#### 步驟：
+1. 前往 https://console.cloud.google.com/
+2. 登入您的 Google 帳號
+3. 點選「新增專案」
+4. 輸入專案名稱：「Calendar Integration」
+5. 點選「建立」
 
-1. 執行程式：`./CalendarIntegration`
+#### 步驟 2：啟用 Google Calendar API
 
-2. 觀察輸出，應該看到：
-   ```
-   === Qt 多平台行事曆整合工具 ===
-   示範：Apple Calendar (iCloud) 整合 - 無需 Mac!
-   
-   資料庫已開啟: calendar.db
-   資料庫表已建立
-   已新增平台適配器
-   開始連接 Apple Calendar (iCloud)...
-   開始 Apple Calendar 認證...
-   ```
+1. 在左側選單中選擇「API 和服務」→「程式庫」
+2. 搜尋「Google Calendar API」
+3. 點選並啟用
+4. 同樣啟用「Google Tasks API」（可選）
 
-3. 如果成功，會看到：
-   ```
-   ✅ Apple Calendar 認證成功！
-   發現 X 個行事曆:
-     - 行事曆名稱: URL
-   ```
+#### 步驟 3：建立 OAuth 2.0 憑證
 
-4. 如果失敗，會看到錯誤訊息並提示可能的原因
+1. 前往「API 和服務」→「憑證」
+2. 點選「+ 建立憑證」→「OAuth 用戶端 ID」
+3. 設定 OAuth 同意畫面（首次需要）
+   - 選擇「外部」使用者類型
+   - 填寫應用程式名稱和聯絡資訊
+   - 新增範圍：`calendar.readonly` 和 `tasks.readonly`
+   - 新增測試使用者（您的 Google 帳號）
+4. 建立 OAuth 用戶端 ID
+   - 類型：「桌面應用程式」
+   - 名稱：「Calendar Integration Desktop」
+5. 記錄 Client ID 和 Client Secret
 
-#### 預期結果：
+#### 步驟 4：設定環境變數
 
-- ✅ 成功連接到 caldav.icloud.com
-- ✅ 成功通過 HTTP Basic 認證
-- ✅ 成功列出使用者的行事曆
+設定環境變數以儲存 OAuth 憑證（不要直接寫在程式碼中）：
 
-#### 可能的錯誤：
+**Linux/macOS:**
+```bash
+export GOOGLE_CLIENT_ID="YOUR_CLIENT_ID.apps.googleusercontent.com"
+export GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+```
 
-| 錯誤訊息 | 原因 | 解決方案 |
-|---------|------|---------|
-| `401 Unauthorized` | 密碼錯誤 | 確認使用應用程式專用密碼 |
-| `SSL 憑證驗證失敗` | SSL 問題 | 確認系統時間正確，更新 OpenSSL |
-| `Network timeout` | 網路問題 | 檢查網路連線，防火牆設定 |
+**Windows (PowerShell):**
+```powershell
+$env:GOOGLE_CLIENT_ID="YOUR_CLIENT_ID.apps.googleusercontent.com"
+$env:GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+```
 
-### 測試 2：行事曆列表測試
+**Windows (CMD):**
+```cmd
+set GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+set GOOGLE_CLIENT_SECRET=YOUR_CLIENT_SECRET
+```
 
-**目的**：驗證程式能否正確解析 CalDAV PROPFIND 回應。
+將 `YOUR_CLIENT_ID` 和 `YOUR_CLIENT_SECRET` 替換為您在步驟 3 中取得的實際憑證。
 
-#### 步驟：
+**永久設定（可選）：**
 
-1. 執行程式後，檢查輸出的行事曆列表
+Linux/macOS：將 export 指令加入 `~/.bashrc` 或 `~/.zshrc`
 
-2. 預期輸出範例：
-   ```
-   發現 3 個行事曆:
-     - 工作: https://caldav.icloud.com/12345678/calendars/work/
-     - 個人: https://caldav.icloud.com/12345678/calendars/personal/
-     - 家庭: https://caldav.icloud.com/12345678/calendars/family/
-   ```
+Windows：在「系統內容」→「環境變數」中設定
 
-3. 驗證：
-   - 行事曆名稱是否正確
-   - 行事曆 URL 是否完整
-   - 數量是否符合您在 iCloud 中的行事曆數量
+#### 步驟 5：重新建置並執行
 
-#### 預期結果：
-
-- ✅ 列出所有 iCloud 行事曆
-- ✅ 行事曆名稱正確（中文、英文都支援）
-- ✅ URL 格式正確
-
-### 測試 3：事件查詢測試
-
-**目的**：驗證程式能否獲取並解析行事曆事件。
-
-#### 準備：
-
-在測試前，請在您的 iCloud Calendar 中建立一些測試事件：
-
-1. 前往 https://www.icloud.com/calendar
-2. 建立以下測試事件：
-   - **事件 1**: 一般事件（有開始和結束時間）
-     - 標題：「測試事件 1」
-     - 時間：明天 10:00-11:00
-     - 地點：「辦公室」
-   
-   - **事件 2**: 全天事件
-     - 標題：「全天事件測試」
-     - 時間：後天（勾選「全天」）
-   
-   - **事件 3**: 多天事件
-     - 標題：「出差」
-     - 時間：一週後，持續 3 天
-
-#### 步驟：
+#### 測試 1：OAuth 認證
 
 1. 執行程式
+2. 點選「連接 Google Calendar」
+3. 瀏覽器會自動開啟 Google 授權頁面
+4. 登入並點選「允許」
+5. 確認程式顯示「✓ Google Calendar 已連接」
 
-2. 程式會自動查詢未來 30 天的事件
+**預期結果：**
+- ✅ 瀏覽器成功開啟授權頁面
+- ✅ 認證成功，按鈕變為綠色
+- ✅ 「獲取事件」按鈕變為可用
 
-3. 觀察輸出：
-   ```
-   正在獲取事件 (2024-01-01 至 2024-01-31)...
-   收到 3 個事件
-   
-   === 收到 3 個事件 ===
-   Event: 測試事件 1 (2024-01-02T10:00:00 - 2024-01-02T11:00:00) at 辦公室 [非全天]
-   Event: 全天事件測試 (2024-01-03T00:00:00 - 2024-01-03T23:59:59) at  [全天]
-   Event: 出差 (2024-01-10T00:00:00 - 2024-01-12T23:59:59) at  [全天]
-   
-   事件已儲存到本地資料庫
-   ```
+#### 測試 2：獲取事件
 
-#### 驗證項目：
+1. 在 Google Calendar 建立幾個測試事件
+2. 在程式中點選「獲取事件」
+3. 確認事件列表顯示 Google 事件（藍色）
+4. 點選事件查看詳情
 
-- ✅ 事件標題正確
-- ✅ 開始/結束時間正確
-- ✅ 全天事件標記正確
-- ✅ 地點資訊正確（如果有）
-- ✅ 事件已儲存到本地資料庫
+**預期結果：**
+- ✅ 成功獲取事件
+- ✅ 事件資訊正確
+- ✅ 事件以藍色顯示
 
-### 測試 4：本地資料庫測試
+---
 
-**目的**：驗證事件能否正確儲存到本地 SQLite 資料庫。
+## Microsoft Outlook 測試步驟
 
-#### 步驟：
+### 前置準備：設定 Azure AD 應用程式
 
-1. 執行程式並成功獲取事件後
+#### 步驟 1：註冊應用程式
 
-2. 檢查資料庫檔案：
-   ```bash
-   # 應該在執行目錄中看到 calendar.db
-   ls -lh calendar.db
-   ```
+1. 前往 https://portal.azure.com/
+2. 搜尋「Azure Active Directory」
+3. 選擇「應用程式註冊」→「+ 新增註冊」
+4. 填寫資訊：
+   - 名稱：「Calendar Integration」
+   - 帳戶類型：「任何組織目錄及個人帳戶」
+   - 重新導向 URI：`http://localhost:8081`
+5. 記錄 Application ID 和 Directory ID
 
-3. 使用 SQLite 工具檢查內容：
-   ```bash
-   # 安裝 sqlite3（如果尚未安裝）
-   # Ubuntu: sudo apt install sqlite3
-   # macOS: brew install sqlite3
-   # Windows: 下載自 https://www.sqlite.org/download.html
-   
-   # 查詢資料庫
-   sqlite3 calendar.db
-   ```
+#### 步驟 2：建立密碼
 
-4. 在 SQLite prompt 中執行：
-   ```sql
-   -- 查看表結構
-   .schema events
-   
-   -- 查詢所有事件
-   SELECT id, title, start_time, is_all_day FROM events;
-   
-   -- 統計事件數量
-   SELECT COUNT(*) FROM events;
-   
-   -- 退出
-   .quit
-   ```
+1. 選擇「憑證及祕密」→「+ 新增用戶端密碼」
+2. 設定描述和到期時間
+3. 複製並保存密碼值（只顯示一次）
 
-#### 預期結果：
+#### 步驟 3：設定權限
 
-- ✅ calendar.db 檔案已建立
-- ✅ events 表包含所有查詢到的事件
-- ✅ 資料欄位完整且正確
+1. 選擇「API 權限」→「+ 新增權限」
+2. 選擇「Microsoft Graph」→「委派的權限」
+3. 新增權限：
+   - `Calendars.Read`
+   - `Calendars.Read.Shared`
+   - `Tasks.Read`
+   - `User.Read`
 
-### 測試 5：錯誤處理測試
+#### 步驟 4：設定環境變數
 
-**目的**：驗證程式的錯誤處理機制。
+設定環境變數以儲存 Azure AD OAuth 憑證：
 
-#### 測試 5.1：錯誤的認證資訊
+**Linux/macOS:**
+```bash
+export OUTLOOK_CLIENT_ID="YOUR_APPLICATION_CLIENT_ID"
+export OUTLOOK_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+```
 
-1. 修改 `main.cpp` 中的密碼為錯誤值
-2. 執行程式
-3. 預期看到：
-   ```
-   ❌ 認證失敗: PROPFIND 錯誤: Error transferring ... - server replied: Unauthorized
-   
-   請檢查：
-   1. Apple ID 格式正確（email 格式）
-   2. 使用的是「應用程式專用密碼」而非 Apple ID 密碼
-   3. Apple ID 已啟用雙重認證
-   4. 網路連線正常
-   ```
+**Windows (PowerShell):**
+```powershell
+$env:OUTLOOK_CLIENT_ID="YOUR_APPLICATION_CLIENT_ID"
+$env:OUTLOOK_CLIENT_SECRET="YOUR_CLIENT_SECRET"
+```
 
-#### 測試 5.2：網路中斷
+**Windows (CMD):**
+```cmd
+set OUTLOOK_CLIENT_ID=YOUR_APPLICATION_CLIENT_ID
+set OUTLOOK_CLIENT_SECRET=YOUR_CLIENT_SECRET
+```
 
-1. 執行程式前先中斷網路連線
-2. 執行程式
-3. 預期看到網路錯誤訊息
+將憑證替換為您在步驟 1 和步驟 2 中取得的實際值。
 
-#### 測試 5.3：無效的 Apple ID 格式
+#### 步驟 5：重新建置並執行
 
-1. 修改 `main.cpp` 中的 Apple ID 為無效格式（例如：沒有 @ 符號）
-2. 執行程式
-3. 預期看到：
-   ```
-   錯誤: 無效的 Apple ID 格式
-   ```
+#### 測試 1：OAuth 認證
 
-#### 預期結果：
+1. 執行程式
+2. 點選「連接 Microsoft Outlook」
+3. 瀏覽器會開啟 Microsoft 授權頁面
+4. 登入並點選「接受」
+5. 確認程式顯示「✓ Outlook 已連接」
 
-- ✅ 錯誤訊息清晰明確
-- ✅ 提供除錯建議
-- ✅ 程式不會崩潰
+**預期結果：**
+- ✅ 瀏覽器成功開啟授權頁面
+- ✅ 認證成功，按鈕變為藍色
+- ✅ 「獲取事件」按鈕變為可用
+
+#### 測試 2：獲取事件
+
+1. 在 Outlook Calendar 建立測試事件
+2. 在程式中點選「獲取事件」
+3. 確認事件列表顯示 Outlook 事件（深藍色）
+
+**預期結果：**
+- ✅ 成功獲取事件
+- ✅ 事件以深藍色顯示
+
+---
+
+## UI 測試步驟
+
+### 測試 1：視窗佈局
+
+- 檢查主視窗大小：1200x800
+- 檢查三欄佈局：左側（帳號）、中間（列表）、右側（詳情）
+- 檢查選單列和狀態列
+
+**預期結果：**
+- ✅ 所有 UI 元件正確顯示
+- ✅ 佈局合理美觀
+
+### 測試 2：互動功能
+
+- 測試搜尋功能：即時過濾事件
+- 測試平台篩選：切換 Google/Outlook/全部
+- 測試日期選擇器：選擇日期範圍
+- 測試事件詳情：點選事件顯示詳情
+
+**預期結果：**
+- ✅ 所有互動正常
+- ✅ 回饋及時
+
+### 測試 3：雙平台整合
+
+1. 連接 Google 和 Outlook
+2. 獲取事件
+3. 使用平台篩選切換顯示
+
+**預期結果：**
+- ✅ 可同時使用兩個平台
+- ✅ 事件混合顯示
+- ✅ 平台篩選正確
 
 ---
 
 ## 常見問題排除
 
-### Q1: 編譯錯誤 - 找不到 Qt 模組
+### Q1: 找不到 Qt NetworkAuth
 
-**錯誤訊息**：
-```
-CMake Error: Could not find a package configuration file provided by "Qt6"
-```
-
-**解決方案**：
+**解決方案：**
 ```bash
-# 確認 Qt 已正確安裝
-qmake --version  # 或 qmake6 --version
+# Linux
+sudo apt install qt6-networkauth-dev
 
-# 設定 CMAKE_PREFIX_PATH
-cmake .. -DCMAKE_PREFIX_PATH=/path/to/qt6
+# macOS
+brew reinstall qt@6
 
-# Windows 範例
-cmake .. -DCMAKE_PREFIX_PATH="C:/Qt/6.5.3/msvc2019_64"
-
-# Linux 範例
-cmake .. -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/qt6
-
-# macOS 範例
-cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@6
+# Windows
+# 使用 Qt Maintenance Tool 安裝
 ```
 
-### Q2: 執行時錯誤 - 找不到 Qt 函式庫
+### Q2: OAuth 回調失敗
 
-**錯誤訊息** (Windows)：
-```
-無法啟動此程式，因為您的電腦遺失 Qt6Core.dll
-```
+**原因：** 埠被佔用或防火牆阻擋
 
-**解決方案**：
+**解決方案：**
+- 確認埠 8080 (Google) 和 8081 (Outlook) 可用
+- 檢查防火牆設定
+- 確認回調 URI 設定正確
 
-#### Windows
+### Q3: 無法獲取事件
 
-> **💡 自動修復**: 從最新版本的 CMakeLists.txt 開始，此問題應該已自動解決。建置時會自動執行 `windeployqt` 複製所有必要的 DLL。
+**可能原因：**
+- Access Token 過期
+- API 權限不足
+- 網路連線問題
 
-如果您仍然遇到此問題，可能是以下原因：
-
-1. **使用舊版建置**：請重新執行完整建置流程
-   ```powershell
-   cd build
-   cmake --build . --config Release
-   ```
-
-2. **windeployqt 未找到**：CMake 會顯示警告。手動執行：
-   ```powershell
-   cd build/Release
-   C:/Qt/6.5.3/msvc2019_64/bin/windeployqt.exe CalendarIntegration.exe
-   ```
-
-3. **手動複製 DLL**（最後手段）：
-   ```powershell
-   # 從 C:/Qt/6.5.3/msvc2019_64/bin/ 複製以下檔案到執行檔目錄：
-   # - Qt6Core.dll
-   # - Qt6Network.dll
-   # - Qt6Sql.dll
-   # - Qt6Gui.dll
-   # 以及其他 windeployqt 會複製的依賴項
-   ```
-
-#### Linux
-```bash
-# 設定 LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
-./CalendarIntegration
-```
-
-#### macOS
-```bash
-# 使用 macdeployqt
-macdeployqt CalendarIntegration.app
-
-# 或設定 DYLD_LIBRARY_PATH
-export DYLD_LIBRARY_PATH=/usr/local/opt/qt@6/lib:$DYLD_LIBRARY_PATH
-./CalendarIntegration
-```
-
-### Q3: 401 Unauthorized 錯誤
-
-**症狀**：程式執行後顯示認證失敗。
-
-**可能原因與解決方案**：
-
-1. **使用了 Apple ID 密碼而非應用程式專用密碼**
-   - ✅ 解決：重新產生應用程式專用密碼並使用
-
-2. **應用程式專用密碼輸入錯誤**
-   - ✅ 解決：仔細檢查密碼格式（xxxx-xxxx-xxxx-xxxx）
-
-3. **Apple ID 尚未啟用雙重認證**
-   - ✅ 解決：前往 appleid.apple.com 啟用雙重認證
-
-4. **應用程式專用密碼已被撤銷**
-   - ✅ 解決：重新產生新的密碼
-
-### Q4: SSL 憑證驗證失敗
-
-**錯誤訊息**：
-```
-SSL 錯誤: The certificate is not trusted
-```
-
-**解決方案**：
-
-1. **更新系統憑證**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt update
-   sudo apt install ca-certificates
-   sudo update-ca-certificates
-   
-   # Fedora/CentOS
-   sudo yum update ca-certificates
-   
-   # macOS
-   # 系統會自動管理憑證
-   ```
-
-2. **檢查系統時間**
-   ```bash
-   # 確認系統時間正確
-   date
-   
-   # 如果不正確，同步時間
-   # Linux
-   sudo ntpdate time.nist.gov
-   
-   # Windows
-   # 設定 > 時間與語言 > 日期與時間 > 立即同步
-   ```
-
-3. **更新 OpenSSL**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt update
-   sudo apt upgrade openssl
-   
-   # macOS
-   brew upgrade openssl
-   ```
-
-### Q5: 沒有列出任何行事曆
-
-**症狀**：程式執行成功但顯示「發現 0 個行事曆」。
-
-**解決方案**：
-
-1. **確認 iCloud 帳號中有行事曆**
-   - 前往 https://www.icloud.com/calendar
-   - 確認至少有一個行事曆存在
-   - 如果沒有，建立一個新的行事曆
-
-2. **檢查行事曆權限**
-   - 確認行事曆不是被隱藏或刪除的
-
-3. **查看詳細除錯資訊**
-   - 修改程式碼啟用除錯模式
-   - 查看 PROPFIND 的原始回應
-
-### Q6: 程式卡住不動
-
-**症狀**：程式執行後沒有任何輸出或反應。
-
-**可能原因與解決方案**：
-
-1. **網路連線問題**
-   - 檢查防火牆是否阻擋 443 埠
-   - 確認可以存取 caldav.icloud.com
-
-2. **等待時間不足**
-   - 網路請求需要時間，等待至少 10-30 秒
-
-3. **啟用除錯輸出**
-   ```bash
-   # 設定 Qt 除錯環境變數
-   export QT_LOGGING_RULES="qt.network.*=true"
-   ./CalendarIntegration
-   ```
+**解決方案：**
+- 重新認證
+- 檢查 API 權限
+- 查看除錯輸出
 
 ---
 
 ## 測試檢查清單
 
-使用此檢查清單確保所有功能都已測試：
-
 ### 環境設定
-
-- [ ] Qt 6 已安裝（`qmake --version`）
-- [ ] CMake 已安裝（`cmake --version`）
-- [ ] C++ 編譯器已安裝
-- [ ] Apple ID 已啟用雙重認證
-- [ ] 已產生應用程式專用密碼
-- [ ] 已在 iCloud Calendar 中建立測試事件
+- [ ] Qt 6 已安裝（含 NetworkAuth 模組）
+- [ ] CMake 已安裝
+- [ ] 已取得 Google OAuth 憑證
+- [ ] 已註冊 Azure AD 應用程式
 
 ### 建置測試
-
 - [ ] CMake 設定成功
-- [ ] 專案建置成功（無編譯錯誤）
-- [ ] 執行檔已產生
+- [ ] 專案建置成功
+- [ ] 執行檔正常啟動
 
-### 功能測試
+### Google Calendar
+- [ ] OAuth 認證成功
+- [ ] 獲取事件成功
+- [ ] 事件資訊正確
+- [ ] 搜尋功能正常
 
-- [ ] **連線測試**：程式能成功連接 caldav.icloud.com
-- [ ] **認證測試**：HTTP Basic 認證成功
-- [ ] **行事曆列表**：能列出所有 iCloud 行事曆
-- [ ] **事件查詢**：能獲取指定日期範圍的事件
-- [ ] **事件解析**：事件資訊正確（標題、時間、地點）
-- [ ] **全天事件**：全天事件正確識別
-- [ ] **資料庫儲存**：事件成功儲存到 SQLite
-- [ ] **中文支援**：中文事件標題正確顯示
+### Microsoft Outlook
+- [ ] OAuth 認證成功
+- [ ] 獲取事件成功
+- [ ] 事件資訊正確
 
-### 錯誤處理測試
-
-- [ ] **錯誤密碼**：顯示清晰的錯誤訊息
-- [ ] **網路中斷**：正確處理網路錯誤
-- [ ] **無效格式**：輸入驗證正常
-- [ ] **SSL 錯誤**：安全性檢查正常
-
-### 跨平台測試
-
-- [ ] **Windows**：在 Windows 上測試成功
-- [ ] **Linux**：在 Linux 上測試成功
-- [ ] **macOS**：在 macOS 上測試成功（可選）
-
----
-
-## 進階測試
-
-### 效能測試
-
-測試大量事件的處理效能：
-
-1. 在 iCloud Calendar 中建立 100+ 個事件
-2. 執行程式並測量：
-   - 查詢時間
-   - 解析時間
-   - 資料庫寫入時間
-
-### 並發測試
-
-測試多個適配器同時運作：
-
-```cpp
-// 在 main.cpp 中同時使用多個平台
-AppleCalendarAdapter* appleAdapter = new AppleCalendarAdapter(&manager);
-GoogleCalendarAdapter* googleAdapter = new GoogleCalendarAdapter(&manager);
-
-manager.addAdapter(appleAdapter);
-manager.addAdapter(googleAdapter);
-```
-
-### 長時間執行測試
-
-測試程式的穩定性：
-
-```cpp
-// 修改 main.cpp 中的計時器
-// 原本: 30 秒
-// 改為: 3600 秒 (1 小時)
-QTimer::singleShot(3600000, &app, [&app]() {
-    app.quit();
-});
-```
-
----
-
-## 測試報告範本
-
-測試完成後，請填寫此測試報告：
-
-```
-測試日期：____________________
-測試人員：____________________
-測試平台：□ Windows  □ Linux  □ macOS
-
-### 測試結果
-
-✅ = 通過  ❌ = 失敗  ⚠️ = 部分通過
-
-| 測試項目 | 結果 | 備註 |
-|---------|------|------|
-| 環境設定 | ☐ | |
-| 專案建置 | ☐ | |
-| CalDAV 連線 | ☐ | |
-| 行事曆列表 | ☐ | |
-| 事件查詢 | ☐ | |
-| 資料庫儲存 | ☐ | |
-| 錯誤處理 | ☐ | |
-
-### 發現的問題
-
-1. 
-2. 
-3. 
-
-### 建議改進
-
-1. 
-2. 
-3. 
-```
-
----
-
-## 技術支援
-
-如果遇到問題，請：
-
-1. **檢查文件**：詳細閱讀 [IMPLEMENTATION.md](IMPLEMENTATION.md)
-2. **查看 FAQ**：IMPLEMENTATION.md 中的常見問題章節
-3. **啟用除錯**：使用 Qt 除錯工具獲取更多資訊
-4. **提交 Issue**：在 GitHub 上提交詳細的問題報告
+### UI 測試
+- [ ] 佈局正確
+- [ ] 互動正常
+- [ ] 雙平台整合正常
+- [ ] 狀態更新正確
 
 ---
 
 ## 參考資源
 
-- [IMPLEMENTATION.md](IMPLEMENTATION.md) - 完整實作文件
-- [README.md](README.md) - 專案說明
-- [Qt 6 文件](https://doc.qt.io/qt-6/)
-- [CalDAV RFC 4791](https://tools.ietf.org/html/rfc4791)
-- [Apple 應用程式專用密碼說明](https://support.apple.com/zh-tw/HT204397)
+- [Google Calendar API](https://developers.google.com/calendar/api)
+- [Microsoft Graph API](https://learn.microsoft.com/en-us/graph/api/resources/calendar)
+- [Qt NetworkAuth](https://doc.qt.io/qt-6/qtnetworkauth-index.html)
 
 ---
 
 **最後更新**: 2024 年 12 月
 
-**版本**: 1.0.0
+**版本**: 2.0.0
+
+**注意**：Apple Calendar 整合已完成但目前因設備問題暫時停用。
