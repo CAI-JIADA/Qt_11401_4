@@ -14,10 +14,3 @@ Qt 多平台行事曆整合工具 - 整合 Google、Apple、Outlook 行事曆的
 - 🔍 **搜索功能** - 快速搜索所有事件
 - 📱 **跨裝置支援** - 支援桌面與行動裝置
 
-### 快速開始
-
-請參閱 [IMPLEMENTATION.md](IMPLEMENTATION.md) 了解完整的實作指南和技術需求。
-
-## 授權
-
-MIT License
