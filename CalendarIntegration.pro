@@ -40,8 +40,6 @@ SOURCES += \
     src/main.cpp \
     src/core/CalendarEvent.cpp \
     src/core/CalendarManager.cpp \
-    src/adapters/CalDAVClient.cpp \
-    src/adapters/AppleCalendarAdapter.cpp \
     src/adapters/GoogleCalendarAdapter.cpp \
     src/adapters/OutlookCalendarAdapter.cpp \
     src/storage/DatabaseManager.cpp \
@@ -51,9 +49,7 @@ SOURCES += \
 HEADERS += \
     src/core/CalendarEvent.h \
     src/core/CalendarManager.h \
-    src/adapters/CalDAVClient.h \
     src/adapters/CalendarAdapter.h \
-    src/adapters/AppleCalendarAdapter.h \
     src/adapters/GoogleCalendarAdapter.h \
     src/adapters/OutlookCalendarAdapter.h \
     src/storage/DatabaseManager.h \

@@ -1,10 +1,8 @@
 # Qt 多平台行事曆整合工具 - 實作指南
 
-> **💡 重要提示**: Apple Calendar 整合**不需要 Mac 環境**！本指南提供完整的 CalDAV 跨平台實作方案，適用於 Windows、Linux 和 macOS。詳見 [Apple Calendar 跨平台整合](#2-apple-calendar-icloud) 章節。
-
 ## 專案概述
 
-本專案旨在使用 Qt 框架開發一個跨平台的行事曆整合工具，可以將 Google Calendar、Apple Calendar 和 Microsoft Outlook 等不同平台的待辦事項整合到統一的介面中。
+本專案旨在使用 Qt 框架開發一個跨平台的行事曆整合工具，可以將 Google Calendar 和 Microsoft Outlook 等不同平台的待辦事項整合到統一的介面中。
 
 ---
 
@@ -12,16 +10,13 @@
 
 1. [系統架構](#系統架構)
 2. [支援平台整合](#支援平台整合)
-   - [Apple Calendar 跨平台整合說明](#2-apple-calendar-icloud)
-3. [跨平台實作重點說明](#跨平台實作重點說明)
-4. [功能需求](#功能需求)
-5. [技術實作建議](#技術實作建議)
-6. [所需工具與依賴](#所需工具與依賴)
-7. [使用者介面設計](#使用者介面設計)
-8. [安全性考量](#安全性考量)
-9. [開發時程建議](#開發時程建議)
-10. [常見問題 (FAQ)](#常見問題-faq)
-11. [參考資源](#參考資源)
+3. [功能需求](#功能需求)
+4. [技術實作建議](#技術實作建議)
+5. [所需工具與依賴](#所需工具與依賴)
+6. [使用者介面設計](#使用者介面設計)
+7. [安全性考量](#安全性考量)
+8. [開發時程建議](#開發時程建議)
+9. [參考資源](#參考資源)
 
 ---
 
@@ -40,10 +35,10 @@
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 ├─────────────────────────────────────────────────────────────┤
 │                      資料同步層                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ Google API   │  │ Apple API    │  │ Outlook API  │      │
-│  │   適配器     │  │   適配器     │  │   適配器     │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│  ┌──────────────┐                   ┌──────────────┐       │
+│  │ Google API   │                   │ Outlook API  │       │
+│  │   適配器     │                   │   適配器     │       │
+│  └──────────────┘                   └──────────────┘       │
 ├─────────────────────────────────────────────────────────────┤
 │                      本地儲存層                              │
 │           (SQLite / JSON 快取)                              │
@@ -103,235 +98,7 @@ signals:
 
 ---
 
-### 2. Apple Calendar (iCloud)
-
-#### 跨平台整合說明 ⭐
-
-**重要**: Apple Calendar 整合**不需要 Mac 環境**！透過 CalDAV 協議，可以在 Windows、Linux 和其他平台上實作完整的 iCloud Calendar 整合。
-
-#### API 資訊
-- **API 名稱**: CalDAV Protocol (RFC 4791)
-- **主要協議**: CalDAV (Calendar Extensions to WebDAV)
-- **跨平台支援**: ✅ Windows、Linux、macOS 全平台支援
-- **文件連結**: 
-  - CalDAV RFC: https://tools.ietf.org/html/rfc4791
-  - Apple CalDAV: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iCloudCalendarSharingGuide/
-- **認證方式**: App-specific Password (應用程式專用密碼)
-
-> **注意**: EventKit framework 僅限 macOS/iOS 平台，但 CalDAV 協議是標準化的跨平台解決方案，無需 Apple 硬體或作業系統。
-
-#### 整合步驟 (跨平台適用)
-
-##### 1. 設定 Apple ID 應用程式專用密碼
-1. 登入 Apple ID 帳號管理頁面 (appleid.apple.com)
-2. 進入「安全性」區段
-3. 選擇「應用程式專用密碼」
-4. 產生新的應用程式密碼 (會顯示為 xxxx-xxxx-xxxx-xxxx 格式)
-5. 記錄此密碼供應用程式使用
-
-##### 2. CalDAV 連線設定
-```cpp
-// CalDAV 連線參數 (適用所有平台)
-struct CalDAVConfig {
-    QString server = "caldav.icloud.com";
-    quint16 port = 443;
-    bool useSSL = true;
-    QString username; // Apple ID email
-    QString password; // 應用程式專用密碼
-    QString basePath; // /[AppleID]/calendars/
-};
-```
-
-##### 3. 實作 CalDAV 客戶端 (跨平台)
-
-#### CalDAV 端點
-```
-主機: caldav.icloud.com
-端口: 443 (HTTPS)
-協議: CalDAV over HTTPS
-基礎路徑: /{Apple_ID_username}/calendars/
-
-說明：基礎路徑使用 Apple ID 中 @ 符號前的部分
-範例:
-- Apple ID: user@example.com
-- Apple ID username: user
-- 基礎路徑: /user/calendars/
-```
-
-#### Qt 跨平台實作範例
-```cpp
-// 使用 Qt Network 實作 CalDAV 客戶端 (全平台適用)
-#include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
-#include <QAuthenticator>
-#include <QXmlStreamReader>
-
-class AppleCalendarAdapter : public CalendarAdapter {
-    Q_OBJECT
-public:
-    // 跨平台認證 - 使用應用程式專用密碼
-    void authenticate(const QString& appleId, const QString& appPassword);
-    
-    // CalDAV 標準操作
-    void discoverCalendars();           // PROPFIND 請求
-    void fetchCalendarList();           // 列出所有行事曆
-    void fetchEvents(const QString& calendarId, 
-                    const QDateTime& start, 
-                    const QDateTime& end);  // REPORT 請求
-    void createEvent(const CalendarEvent& event);    // PUT 請求
-    void updateEvent(const CalendarEvent& event);    // PUT 請求
-    void deleteEvent(const QString& eventId);        // DELETE 請求
-    
-signals:
-    void authenticationSuccess();
-    void authenticationFailed(const QString& error);
-    void calendarsDiscovered(const QList<CalendarInfo>& calendars);
-    void eventsReceived(const QList<CalendarEvent>& events);
-    
-private:
-    QNetworkAccessManager* m_networkManager;
-    QString m_baseUrl;
-    QString m_username;
-    QString m_password;
-    QString m_server;      // caldav.icloud.com
-    quint16 m_port;        // 443
-    QString m_basePath;    // /{username}/calendars/
-    
-    // CalDAV HTTP 方法實作
-    void sendPropfind(const QString& path, int depth = 1);
-    void sendReport(const QString& path, const QByteArray& reportXml);
-    void sendPut(const QString& path, const QByteArray& icsData);
-    void sendDelete(const QString& path);
-    
-    // XML 解析
-    QList<CalendarInfo> parseMultistatusResponse(const QByteArray& xml);
-    QList<CalendarEvent> parseCalendarData(const QByteArray& icsData);
-    
-    // 身份驗證處理
-    void handleAuthenticationRequired(QNetworkReply* reply, 
-                                     QAuthenticator* authenticator);
-};
-
-// CalDAV PROPFIND 請求範例 (查詢行事曆列表)
-void AppleCalendarAdapter::discoverCalendars() {
-    QString url = QString("https://%1:%2%3")
-        .arg(m_server)
-        .arg(m_port)
-        .arg(m_basePath);
-    
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/xml; charset=utf-8");
-    request.setRawHeader("Depth", "1");
-    
-    QByteArray propfindXml = 
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-        "  <d:prop>"
-        "    <d:displayname />"
-        "    <d:resourcetype />"
-        "    <c:calendar-description />"
-        "    <c:calendar-color />"
-        "  </d:prop>"
-        "</d:propfind>";
-    
-    QNetworkReply* reply = m_networkManager->sendCustomRequest(
-        request, "PROPFIND", propfindXml);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QList<CalendarInfo> calendars = parseMultistatusResponse(reply->readAll());
-            emit calendarsDiscovered(calendars);
-        }
-        reply->deleteLater();
-    });
-}
-
-// CalDAV REPORT 請求範例 (查詢事件)
-void AppleCalendarAdapter::fetchEvents(const QString& calendarUrl,
-                                       const QDateTime& start,
-                                       const QDateTime& end) {
-    QNetworkRequest request(calendarUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/xml; charset=utf-8");
-    request.setRawHeader("Depth", "1");
-    
-    QString reportXml = QString(
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<c:calendar-query xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-        "  <d:prop>"
-        "    <d:getetag />"
-        "    <c:calendar-data />"
-        "  </d:prop>"
-        "  <c:filter>"
-        "    <c:comp-filter name=\"VCALENDAR\">"
-        "      <c:comp-filter name=\"VEVENT\">"
-        "        <c:time-range start=\"%1\" end=\"%2\" />"
-        "      </c:comp-filter>"
-        "    </c:comp-filter>"
-        "  </c:filter>"
-        "</c:calendar-query>")
-        .arg(start.toString(Qt::ISODate))
-        .arg(end.toString(Qt::ISODate));
-    
-    QNetworkReply* reply = m_networkManager->sendCustomRequest(
-        request, "REPORT", reportXml.toUtf8());
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QList<CalendarEvent> events = parseCalendarData(reply->readAll());
-            emit eventsReceived(events);
-        }
-        reply->deleteLater();
-    });
-}
-```
-
-#### 平台特定注意事項
-
-##### Windows
-- ✅ 完全支援 CalDAV
-- 建議使用 Qt Network 模組
-- 支援 Windows 7 及以上版本
-
-##### Linux
-- ✅ 完全支援 CalDAV
-- 建議使用 Qt Network 模組
-- 所有主流發行版均可使用
-
-##### macOS
-- ✅ 支援 CalDAV（跨平台方式）
-- ✅ 可選使用 EventKit framework（原生 API，但限 macOS）
-- 建議：優先使用 CalDAV 以保持跨平台一致性
-
-#### 常見問題與解決方案
-
-##### Q: 如何獲取 Apple ID 的基礎路徑？
-```cpp
-// 自動發現基礎路徑
-void AppleCalendarAdapter::discoverPrincipal(const QString& appleId) {
-    // Step 1: 發送 PROPFIND 到根路徑
-    QString url = "https://caldav.icloud.com/";
-    // Step 2: 解析回應中的 current-user-principal
-    // Step 3: 使用該路徑作為基礎路徑
-}
-```
-
-##### Q: 身份驗證失敗怎麼辦？
-- 確認使用的是「應用程式專用密碼」而非 Apple ID 密碼
-- 檢查 Apple ID 是否啟用雙重認證
-- 驗證應用程式專用密碼是否過期
-
-##### Q: 如何處理 SSL/TLS 連線？
-```cpp
-// Qt Network 自動處理 SSL
-QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
-sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
-request.setSslConfiguration(sslConfig);
-```
-
----
-
-### 3. Microsoft Outlook
+### 2. Microsoft Outlook
 
 #### API 資訊
 - **API 名稱**: Microsoft Graph API
@@ -369,520 +136,6 @@ private:
 
 ---
 
-## 跨平台實作重點說明
-
-### Apple Calendar 跨平台整合 (無需 Mac 環境)
-
-本節詳細說明如何在**沒有 Mac 環境**的情況下實作 Apple Calendar (iCloud) 整合。
-
-#### 為什麼 CalDAV 是最佳跨平台方案？
-
-| 特性 | CalDAV 協議 | EventKit Framework |
-|------|-------------|-------------------|
-| 跨平台支援 | ✅ Windows/Linux/macOS | ❌ 僅 macOS/iOS |
-| 需要 Mac | ❌ 不需要 | ✅ 必須 |
-| 開發成本 | 低（標準協議） | 高（需 Apple 硬體） |
-| 部署靈活性 | 高（任意平台） | 低（僅 Apple 平台） |
-| API 穩定性 | ✅ RFC 標準 | ⚠️ Apple 專有 |
-
-#### CalDAV 完整實作流程
-
-##### 步驟 1: 設定開發環境（任意平台）
-
-```bash
-# Windows、Linux、macOS 均適用
-# 僅需安裝 Qt 開發環境
-
-# 安裝 Qt 6.x
-# 下載: https://www.qt.io/download
-
-# 或使用套件管理器
-# Ubuntu/Debian:
-sudo apt-get install qt6-base-dev qt6-networkauth-dev
-
-# macOS (Homebrew):
-brew install qt@6
-
-# Windows: 使用 Qt Online Installer
-```
-
-##### 步驟 2: 獲取 Apple 認證資訊
-
-```plaintext
-1. 登入 https://appleid.apple.com
-2. 點選「安全性」
-3. 在「應用程式專用密碼」區段點選「產生密碼」
-4. 輸入密碼名稱（例如：「Calendar Integration App」）
-5. 記錄產生的密碼（格式：xxxx-xxxx-xxxx-xxxx）
-
-注意事項：
-- 必須啟用雙重認證才能產生應用程式專用密碼
-- 每個應用程式專用密碼僅顯示一次，請妥善保存
-- 可隨時撤銷不再使用的密碼
-```
-
-##### 步驟 3: 實作 CalDAV 客戶端
-
-```cpp
-// CalDAVClient.h - 跨平台 CalDAV 客戶端
-#pragma once
-
-#include <QObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QAuthenticator>
-#include <QXmlStreamReader>
-#include <QSslConfiguration>
-#include <QDateTime>
-#include <QUrl>
-
-// 行事曆資訊結構
-struct CalendarInfo {
-    QString url;           // CalDAV URL
-    QString displayName;   // 顯示名稱
-    QString description;   // 描述
-    QString color;         // 顏色 (hex)
-    QStringList supportedComponents; // 支援的元件 (VEVENT, VTODO 等)
-};
-
-class CalDAVClient : public QObject {
-    Q_OBJECT
-    
-public:
-    explicit CalDAVClient(QObject* parent = nullptr);
-    ~CalDAVClient() override;
-    
-    // 認證
-    void setCredentials(const QString& username, const QString& appPassword);
-    
-    // 服務發現
-    void discoverService();
-    void discoverCalendars();
-    
-    // 行事曆操作
-    void listCalendars();
-    void getEvents(const QString& calendarUrl, 
-                   const QDateTime& start, 
-                   const QDateTime& end);
-    
-    // 事件操作
-    void createEvent(const QString& calendarUrl, const QString& icsData);
-    void updateEvent(const QString& eventUrl, const QString& icsData);
-    void deleteEvent(const QString& eventUrl);
-    
-signals:
-    void serviceDiscovered(const QString& principalUrl);
-    void calendarsListed(const QList<CalendarInfo>& calendars);
-    void eventsReceived(const QList<QByteArray>& icsData);
-    void operationSucceeded();
-    void errorOccurred(const QString& error);
-    
-private slots:
-    void handleAuthenticationRequired(QNetworkReply* reply, 
-                                      QAuthenticator* authenticator);
-    void handleSslErrors(QNetworkReply* reply, 
-                        const QList<QSslError>& errors);
-    
-private:
-    QNetworkAccessManager* m_manager;
-    QString m_username;
-    QString m_password;
-    QString m_baseUrl;
-    
-    // CalDAV 請求方法
-    void sendPropfind(const QUrl& url, const QByteArray& xml, int depth = 1);
-    void sendReport(const QUrl& url, const QByteArray& xml);
-    void sendPut(const QUrl& url, const QByteArray& data);
-    void sendDelete(const QUrl& url);
-    
-    // XML 處理
-    QList<CalendarInfo> parseCalendarList(const QByteArray& xml);
-    QString parsePrincipalUrl(const QByteArray& xml);
-};
-
-// CalDAVClient.cpp - 實作範例
-CalDAVClient::CalDAVClient(QObject* parent)
-    : QObject(parent)
-    , m_manager(new QNetworkAccessManager(this))
-{
-    // 設定 SSL
-    QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
-    sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
-    QSslConfiguration::setDefaultConfiguration(sslConfig);
-    
-    // 連接信號
-    connect(m_manager, &QNetworkAccessManager::authenticationRequired,
-            this, &CalDAVClient::handleAuthenticationRequired);
-    connect(m_manager, &QNetworkAccessManager::sslErrors,
-            this, &CalDAVClient::handleSslErrors);
-}
-
-void CalDAVClient::setCredentials(const QString& username, 
-                                   const QString& appPassword) {
-    m_username = username;
-    m_password = appPassword;
-    m_baseUrl = "https://caldav.icloud.com";
-}
-
-void CalDAVClient::discoverService() {
-    QUrl url(m_baseUrl + "/.well-known/caldav");
-    
-    QByteArray propfindXml = 
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<d:propfind xmlns:d=\"DAV:\">"
-        "  <d:prop>"
-        "    <d:current-user-principal />"
-        "  </d:prop>"
-        "</d:propfind>";
-    
-    sendPropfind(url, propfindXml, 0);
-}
-
-void CalDAVClient::discoverCalendars() {
-    // 方法 1: 使用自動發現 (推薦)
-    // 先呼叫 discoverService() 來自動發現正確的路徑
-    
-    // 方法 2: 手動建構 URL (需要正確的 username)
-    // 從 email 中提取 username (@ 之前的部分)
-    QString username = m_username.left(m_username.indexOf('@'));
-    if (username.isEmpty()) {
-        emit errorOccurred("Invalid Apple ID format");
-        return;
-    }
-    
-    QString principalUrl = m_baseUrl + "/" + username + "/";
-    
-    QByteArray propfindXml = 
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<d:propfind xmlns:d=\"DAV:\" "
-        "xmlns:c=\"urn:ietf:params:xml:ns:caldav\" "
-        "xmlns:cs=\"http://calendarserver.org/ns/\" "
-        "xmlns:ical=\"http://apple.com/ns/ical/\">"
-        "  <d:prop>"
-        "    <d:resourcetype />"
-        "    <d:displayname />"
-        "    <ical:calendar-color />"
-        "    <c:calendar-description />"
-        "    <c:supported-calendar-component-set />"
-        "  </d:prop>"
-        "</d:propfind>";
-    
-    sendPropfind(QUrl(principalUrl + "calendars/"), propfindXml, 1);
-}
-
-void CalDAVClient::getEvents(const QString& calendarUrl,
-                             const QDateTime& start,
-                             const QDateTime& end) {
-    QByteArray reportXml = QString(
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-        "<c:calendar-query xmlns:d=\"DAV:\" "
-        "xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-        "  <d:prop>"
-        "    <d:getetag />"
-        "    <c:calendar-data />"
-        "  </d:prop>"
-        "  <c:filter>"
-        "    <c:comp-filter name=\"VCALENDAR\">"
-        "      <c:comp-filter name=\"VEVENT\">"
-        "        <c:time-range start=\"%1\" end=\"%2\" />"
-        "      </c:comp-filter>"
-        "    </c:comp-filter>"
-        "  </c:filter>"
-        "</c:calendar-query>")
-        .arg(start.toString(Qt::ISODate))
-        .arg(end.toString(Qt::ISODate))
-        .toUtf8();
-    
-    sendReport(QUrl(calendarUrl), reportXml);
-}
-
-void CalDAVClient::sendPropfind(const QUrl& url, 
-                                const QByteArray& xml, 
-                                int depth) {
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, 
-                     "application/xml; charset=utf-8");
-    request.setRawHeader("Depth", QByteArray::number(depth));
-    request.setRawHeader("User-Agent", "Qt CalDAV Client/1.0");
-    
-    QNetworkReply* reply = m_manager->sendCustomRequest(
-        request, "PROPFIND", xml);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QByteArray response = reply->readAll();
-            // 處理回應...
-            QList<CalendarInfo> calendars = parseCalendarList(response);
-            emit calendarsListed(calendars);
-        } else {
-            emit errorOccurred(reply->errorString());
-        }
-        reply->deleteLater();
-    });
-}
-
-void CalDAVClient::handleAuthenticationRequired(QNetworkReply* reply,
-                                                QAuthenticator* authenticator) {
-    Q_UNUSED(reply);
-    authenticator->setUser(m_username);
-    authenticator->setPassword(m_password);
-}
-
-void CalDAVClient::handleSslErrors(QNetworkReply* reply,
-                                   const QList<QSslError>& errors) {
-    // iCloud (caldav.icloud.com) 使用正規的 SSL 憑證
-    // 不應該接受自簽憑證或不受信任的憑證
-    
-    // 記錄所有 SSL 錯誤
-    for (const QSslError& error : errors) {
-        qWarning() << "SSL Error:" << error.errorString();
-        qWarning() << "Certificate:" << error.certificate().subjectInfo(QSslCertificate::CommonName);
-    }
-    
-    // 對於 iCloud，應該要求完全有效的 SSL 憑證
-    // 不接受任何 SSL 錯誤以防止中間人攻擊
-    
-    // 如果確實需要處理某些特定情況（如企業代理伺服器）
-    // 應該要求使用者明確配置並驗證憑證指紋
-    
-    emit errorOccurred(QString("SSL 憑證驗證失敗: %1").arg(
-        errors.isEmpty() ? "Unknown" : errors.first().errorString()));
-    
-    // 不呼叫 reply->ignoreSslErrors() 以確保安全
-    // reply->abort(); // 可選：立即中止連線
-    
-    // 注意：在測試環境中如果需要忽略 SSL 錯誤，
-    // 應該透過明確的配置選項啟用，而非在程式碼中預設啟用
-}
-```
-
-##### 步驟 4: 解析 iCalendar 資料
-
-```cpp
-// iCalendar 解析器
-#include <QRegularExpression>
-
-class ICalendarParser {
-public:
-    struct Event {
-        QString uid;
-        QString summary;
-        QString description;
-        QDateTime dtStart;
-        QDateTime dtEnd;
-        QString location;
-        bool isAllDay;
-    };
-    
-    static QList<Event> parseICS(const QByteArray& icsData) {
-        QList<Event> events;
-        QString data = QString::fromUtf8(icsData);
-        
-        // 處理 iCalendar 續行（以空格或 TAB 開頭的行）
-        data.replace(QRegularExpression("\r?\n[ \t]"), "");
-        
-        // 簡單的 VEVENT 解析
-        QRegularExpression eventRegex(
-            "BEGIN:VEVENT.*?END:VEVENT",
-            QRegularExpression::DotMatchesEverythingOption
-        );
-        
-        QRegularExpressionMatchIterator it = eventRegex.globalMatch(data);
-        while (it.hasNext()) {
-            QRegularExpressionMatch match = it.next();
-            QString eventBlock = match.captured(0);
-            
-            Event event;
-            event.uid = extractField(eventBlock, "UID");
-            event.summary = extractField(eventBlock, "SUMMARY");
-            event.description = extractField(eventBlock, "DESCRIPTION");
-            event.location = extractField(eventBlock, "LOCATION");
-            
-            // 解析日期時間
-            QString dtStart = extractFieldWithParams(eventBlock, "DTSTART");
-            event.dtStart = parseDateTime(dtStart);
-            
-            QString dtEnd = extractFieldWithParams(eventBlock, "DTEND");
-            event.dtEnd = parseDateTime(dtEnd);
-            
-            // 檢查是否為全天事件
-            // 全天事件的日期格式為 YYYYMMDD（無時間部分，不含 'T'）
-            event.isAllDay = !dtStart.contains('T') && dtStart.length() == 8;
-            
-            events.append(event);
-        }
-        
-        return events;
-    }
-    
-private:
-    static QString extractFieldWithParams(const QString& block, 
-                                         const QString& fieldName) {
-        // 處理帶參數的欄位，例如 DTSTART;TZID=Asia/Taipei:20240101T120000
-        // 提取冒號後的值（日期時間部分），參數信息會被忽略
-        // 注意：此函數僅返回日期時間值，時區資訊需另外處理
-        QRegularExpression regex(fieldName + "[^:]*:([^\r\n]*)$");
-        QRegularExpressionMatch match = regex.match(block);
-        if (match.hasMatch()) {
-            return match.captured(1).trimmed();
-        }
-        return QString();
-    }
-    static QString extractField(const QString& block, 
-                               const QString& fieldName) {
-        // 處理簡單欄位（不帶參數）
-        // 注意：iCalendar 欄位可能包含冒號，所以只匹配第一個冒號
-        QRegularExpression regex(fieldName + ":([^\r\n]*)");
-        QRegularExpressionMatch match = regex.match(block);
-        if (match.hasMatch()) {
-            return match.captured(1).trimmed();
-        }
-        return QString();
-    }
-    
-    static QDateTime parseDateTime(const QString& dtString) {
-        // 處理多種 iCalendar 日期格式
-        // 注意：此函數接收的是純日期時間字串（已移除參數如 TZID）
-        
-        if (dtString.isEmpty()) {
-            return QDateTime();
-        }
-        
-        // 1. UTC 格式: 20240101T120000Z
-        if (dtString.endsWith('Z')) {
-            QDateTime dt = QDateTime::fromString(dtString, "yyyyMMddTHHmmss'Z'");
-            if (dt.isValid()) {
-                dt.setTimeSpec(Qt::UTC);
-                return dt;
-            }
-        }
-        
-        // 2. 本地時間或帶時區的時間格式: 20240101T120000
-        // 注意：TZID 參數已在 extractFieldWithParams 中被移除
-        if (dtString.contains('T')) {
-            QDateTime dt = QDateTime::fromString(dtString, "yyyyMMddTHHmmss");
-            if (dt.isValid()) {
-                // 實際應用中應該從原始欄位解析 TZID 參數並套用時區
-                // 這裡簡化為本地時間處理
-                return dt;
-            }
-        }
-        
-        // 3. 全天事件格式: 20240101 (VALUE=DATE)
-        if (dtString.length() == 8 && !dtString.contains('T')) {
-            QDate date = QDate::fromString(dtString, "yyyyMMdd");
-            if (date.isValid()) {
-                return QDateTime(date, QTime(0, 0, 0));
-            }
-        }
-        
-        qWarning() << "Unable to parse iCalendar date:" << dtString;
-        return QDateTime();
-    }
-};
-```
-
-#### 測試與驗證
-
-```cpp
-// 測試程式
-#include <QCoreApplication>
-#include <QDebug>
-
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    
-    CalDAVClient client;
-    
-    // 設定認證
-    client.setCredentials("your-apple-id@example.com", 
-                         "xxxx-xxxx-xxxx-xxxx");
-    
-    // 測試連線
-    QObject::connect(&client, &CalDAVClient::calendarsListed,
-                    [](const QList<CalendarInfo>& calendars) {
-        qDebug() << "發現" << calendars.size() << "個行事曆:";
-        for (const auto& cal : calendars) {
-            qDebug() << "  -" << cal.displayName;
-        }
-    });
-    
-    QObject::connect(&client, &CalDAVClient::errorOccurred,
-                    [](const QString& error) {
-        qDebug() << "錯誤:" << error;
-    });
-    
-    // 啟動服務發現
-    client.discoverService();
-    
-    return app.exec();
-}
-```
-
-#### 跨平台部署注意事項
-
-> **💡 Windows 自動部署**: 從 CMakeLists.txt 更新後，Windows 平台會在建置時自動執行 `windeployqt`，將所有必要的 Qt DLL 複製到執行檔目錄，無需手動部署步驟。
-
-##### Windows
-```powershell
-# 建置 Qt 專案
-cd your-project
-mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=C:/Qt/6.x/msvc2019_64
-cmake --build . --config Release
-
-# Qt DLL 會自動部署（透過 CMakeLists.txt 中的 windeployqt 設定）
-# 建置完成後，所有必要的 Qt DLL 已自動複製到執行檔目錄
-# 可以直接執行：
-.\Release\CalendarIntegration.exe
-```
-
-##### Linux
-```bash
-# 建置
-mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/qt6
-cmake --build .
-
-# 部署（AppImage）
-linuxdeployqt YourApp
-```
-
-##### macOS
-```bash
-# 建置
-mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@6
-cmake --build .
-
-# 部署
-macdeployqt YourApp.app -dmg
-```
-
-#### 效能優化建議
-
-1. **快取機制**: 本地快取已下載的事件
-2. **增量同步**: 僅同步變更的資料
-3. **批次請求**: 合併多個 CalDAV 請求
-4. **背景同步**: 使用 Qt Concurrent 進行非同步處理
-
-```cpp
-// 背景同步範例
-#include <QtConcurrent>
-
-void CalendarManager::syncInBackground() {
-    QFuture<void> future = QtConcurrent::run([this]() {
-        for (const auto& calendar : m_calendars) {
-            QDateTime start = QDateTime::currentDateTime();
-            QDateTime end = start.addDays(30);
-            m_caldavClient->getEvents(calendar.url, start, end);
-        }
-    });
-}
-```
-
----
-
 ## 功能需求
 
 ### 1. 待辦事項整合
@@ -890,10 +143,9 @@ void CalendarManager::syncInBackground() {
 #### 資料模型
 
 ```cpp
-// 平台類型列舉 - 使用 enum class 確保類型安全
+// 平台類型列舉
 enum class Platform {
     Google,
-    Apple,
     Outlook
 };
 
@@ -905,8 +157,8 @@ struct CalendarEvent {
     QDateTime startTime;
     QDateTime endTime;
     QString location;
-    Platform platform;     // 使用列舉類型確保類型安全
-    QString ownerId;       // 事件擁有者
+    Platform platform;
+    QString ownerId;
     bool isAllDay;
     QStringList attendees;
     QString recurrenceRule;
@@ -919,7 +171,7 @@ struct Task {
     QString title;
     QString description;
     QDateTime dueDate;
-    Platform platform;    // 使用列舉類型確保類型安全
+    Platform platform;
     QString ownerId;
     bool isCompleted;
     int priority;         // 1-5
@@ -934,7 +186,6 @@ struct Task {
 | 平台 | 共享方式 | 實作方法 |
 |------|----------|----------|
 | Google | 行事曆共享連結 / 邀請 | 使用 `calendarList.list` API |
-| Apple | iCloud 家庭共享 / 行事曆共享 | CalDAV 訂閱 |
 | Outlook | 共享行事曆 / 群組行事曆 | Microsoft Graph `calendarView` |
 
 ```cpp
@@ -1031,11 +282,9 @@ CalendarIntegration/
 │   │   ├── CalendarManager.cpp
 │   │   └── CalendarManager.h
 │   ├── adapters/
-│   │   ├── CalendarAdapter.h          # 抽象基類
+│   │   ├── CalendarAdapter.h
 │   │   ├── GoogleCalendarAdapter.cpp
 │   │   ├── GoogleCalendarAdapter.h
-│   │   ├── AppleCalendarAdapter.cpp
-│   │   ├── AppleCalendarAdapter.h
 │   │   ├── OutlookCalendarAdapter.cpp
 │   │   └── OutlookCalendarAdapter.h
 │   ├── sync/
@@ -1136,8 +385,7 @@ CREATE VIRTUAL TABLE events_fts USING fts5(
 # 第三方依賴
 # 1. JSON 處理 (Qt 內建)
 # 2. OAuth 2.0 (Qt Network Auth)
-# 3. CalDAV 客戶端 (需自行實作或使用第三方)
-# 4. SQLite (Qt SQL)
+# 3. SQLite (Qt SQL)
 ```
 
 ### 平台 SDK
@@ -1146,18 +394,6 @@ CREATE VIRTUAL TABLE events_fts USING fts5(
 ```bash
 # 不需要額外 SDK，使用 REST API
 # 需要設定 Google Cloud 專案
-```
-
-#### Apple (跨平台 - 無需 Mac)
-```bash
-# ⭐ 跨平台方案 (推薦)
-# 使用 CalDAV 協議 - 適用於 Windows、Linux、macOS
-# 無需 Apple 開發環境或 Mac 硬體
-# 僅需 Qt Network 模組
-
-# 可選方案 (僅限 macOS/iOS)
-# macOS/iOS: 可使用 EventKit framework (原生 API)
-# 注意: EventKit 僅限 Apple 平台，不具跨平台性
 ```
 
 #### Microsoft
@@ -1294,13 +530,11 @@ Item {
 class SecureTokenStorage {
 public:
     // 使用系統金鑰鏈儲存 token
-    // 回傳 true 表示儲存成功，false 表示失敗
     bool saveToken(const QString& service, const QString& token);
     
     // 使用 std::optional 處理 token 可能不存在的情況
     std::optional<QString> loadToken(const QString& service);
     
-    // 回傳 true 表示刪除成功，false 表示失敗
     bool deleteToken(const QString& service);
     
 private:
@@ -1358,16 +592,10 @@ public:
 - [ ] 建立本地資料庫
 - [ ] 基本 UI 框架
 
-### 第二階段 - 平台整合 (跨平台重點)
+### 第二階段 - 平台整合
 
 - [ ] Google Calendar 整合 (OAuth 2.0)
 - [ ] Microsoft Outlook 整合 (Microsoft Graph API)
-- [ ] **Apple Calendar 跨平台整合** (CalDAV 協議)
-  - [ ] 實作 CalDAV 客戶端（適用 Windows/Linux/macOS）
-  - [ ] 應用程式專用密碼認證
-  - [ ] 服務自動發現
-  - [ ] iCalendar (ICS) 格式解析
-  - [ ] 測試跨平台相容性
 
 ### 第三階段 - 核心功能 
 
@@ -1391,149 +619,17 @@ public:
 
 ---
 
-## 常見問題 (FAQ)
-
-### Apple Calendar 跨平台整合
-
-#### Q1: 真的不需要 Mac 就能整合 Apple Calendar 嗎？
-**A**: 是的！透過標準的 CalDAV 協議，您可以在 Windows、Linux 或任何支援 HTTP/HTTPS 的平台上存取 iCloud Calendar。CalDAV 是一個開放標準（RFC 4791），不需要 Apple 硬體或作業系統。
-
-#### Q2: CalDAV 和 EventKit 有什麼差別？
-**A**: 
-- **CalDAV**: 開放標準協議，跨平台支援，透過 HTTP/HTTPS 存取
-- **EventKit**: Apple 專有框架，僅限 macOS 和 iOS，需要 Xcode 和 Apple 開發環境
-
-對於跨平台應用，**強烈建議使用 CalDAV**。
-
-#### Q3: 如何獲取 Apple 的應用程式專用密碼？
-**A**: 
-1. 前往 https://appleid.apple.com
-2. 登入您的 Apple ID
-3. 在「安全性」區段中選擇「應用程式專用密碼」
-4. 點選「產生密碼」並給予名稱
-5. 複製產生的密碼（格式：xxxx-xxxx-xxxx-xxxx）
-
-**注意**: 必須先啟用雙重認證才能產生應用程式專用密碼。
-
-#### Q4: CalDAV 支援哪些功能？
-**A**: CalDAV 支援完整的日曆功能：
-- ✅ 讀取事件
-- ✅ 建立事件
-- ✅ 更新事件
-- ✅ 刪除事件
-- ✅ 讀取共享行事曆
-- ✅ 事件提醒
-- ✅ 重複事件
-- ✅ 行事曆顏色
-
-#### Q5: 效能如何？需要持續連線嗎？
-**A**: CalDAV 是基於 HTTP 的請求-回應協議：
-- 無需持續連線
-- 可實作本地快取以提升效能
-- 支援增量同步（僅同步變更）
-- 適合定期同步（如每 5-15 分鐘）
-
-#### Q6: 如何處理多個 iCloud 帳號？
-**A**: 為每個帳號建立獨立的 CalDAVClient 實例：
-
-```cpp
-CalDAVClient* account1 = new CalDAVClient();
-account1->setCredentials("user1@example.com", "xxxx-xxxx-xxxx-xxxx");
-
-CalDAVClient* account2 = new CalDAVClient();
-account2->setCredentials("user2@example.com", "yyyy-yyyy-yyyy-yyyy");
-```
-
-#### Q7: 支援哪些 iCalendar 格式？
-**A**: CalDAV 使用標準的 iCalendar (RFC 5545) 格式：
-- VEVENT (事件)
-- VTODO (待辦事項)
-- VJOURNAL (日誌)
-- VALARM (提醒)
-
-#### Q8: 如何處理時區問題？
-**A**: iCalendar 格式內建時區支援。Qt 的 QDateTime 可以自動處理：
-
-```cpp
-// 使用 UTC 時間
-QDateTime dt = QDateTime::currentDateTimeUtc();
-QString isoDate = dt.toString(Qt::ISODate); // 2024-01-01T12:00:00Z
-
-// 使用本地時區
-QDateTime local = dt.toLocalTime();
-```
-
-#### Q9: 是否需要付費或申請開發者帳號？
-**A**: 不需要！CalDAV 存取僅需：
-- ✅ 免費的 Apple ID 帳號
-- ✅ 啟用雙重認證
-- ✅ 產生應用程式專用密碼
-
-**無需**：
-- ❌ Apple Developer Program ($99/年)
-- ❌ 特殊權限或審核
-- ❌ Mac 電腦
-
-#### Q10: 遇到「401 Unauthorized」錯誤怎麼辦？
-**A**: 常見原因與解決方案：
-1. **密碼錯誤**: 確認使用應用程式專用密碼，而非 Apple ID 密碼
-2. **密碼過期**: 應用程式專用密碼不會過期，但可能被撤銷，請重新產生
-3. **帳號問題**: 確認 Apple ID 已啟用雙重認證
-4. **URL 錯誤**: 確認使用正確的 CalDAV 端點（caldav.icloud.com）
-
-#### Q11: 可以在商業產品中使用嗎？
-**A**: 可以！CalDAV 是開放標準，且 iCloud 免費提供 CalDAV 存取。但請注意：
-- 遵守 Apple 的服務條款
-- 不要過度頻繁請求（建議間隔至少 5 分鐘）
-- 實作適當的錯誤處理和重試機制
-- 考慮 iCloud 免費帳號的儲存限制
-
-#### Q12: 如何除錯 CalDAV 連線問題？
-**A**: 使用這些工具和技巧：
-
-```cpp
-// 啟用 Qt 網路除錯
-qputenv("QT_LOGGING_RULES", "qt.network.ssl.warning=true");
-
-// 記錄 HTTP 請求
-connect(m_manager, &QNetworkAccessManager::finished,
-        [](QNetworkReply* reply) {
-    qDebug() << "Response:" << reply->attribute(
-        QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    qDebug() << "Headers:" << reply->rawHeaderPairs();
-    qDebug() << "Body:" << reply->readAll();
-});
-```
-
-也可以使用外部工具如 cURL 測試：
-```bash
-curl -X PROPFIND \
-  -H "Depth: 1" \
-  -u "your-email@example.com:xxxx-xxxx-xxxx-xxxx" \
-  https://caldav.icloud.com/
-```
-
----
-
 ## 參考資源
 
 ### API 文件
 - [Google Calendar API](https://developers.google.com/calendar/api/v3/reference)
 - [Microsoft Graph API](https://learn.microsoft.com/en-us/graph/api/resources/calendar)
-- [CalDAV RFC 4791](https://tools.ietf.org/html/rfc4791) - CalDAV 標準協議
-- [iCalendar RFC 5545](https://tools.ietf.org/html/rfc5545) - iCalendar 資料格式
-- [Apple CalDAV 指南](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iCloudCalendarSharingGuide/)
 
 ### Qt 文件
 - [Qt 6 Documentation](https://doc.qt.io/qt-6/)
 - [Qt Network Auth](https://doc.qt.io/qt-6/qtnetworkauth-index.html)
 - [Qt Network](https://doc.qt.io/qt-6/qtnetwork-index.html)
 - [Qt QML](https://doc.qt.io/qt-6/qtqml-index.html)
-
-### CalDAV 相關資源
-- [CalDAV Tester Tool](https://github.com/apple/ccs-caldavtester) - Apple 的 CalDAV 測試工具
-- [sabre/dav](https://sabre.io/dav/) - PHP CalDAV 參考實作
-- [RFC 6638](https://tools.ietf.org/html/rfc6638) - CalDAV 行程安排擴充
 
 ### 範例專案
 - [Qt OAuth2 Examples](https://doc.qt.io/qt-6/qtnetworkauth-index.html#examples)

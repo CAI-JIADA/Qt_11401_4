@@ -12,10 +12,8 @@ src/
 │   └── CalendarManager.h/cpp  # 行事曆管理器
 ├── adapters/                   # 平台適配器
 │   ├── CalendarAdapter.h      # 適配器基類
-│   ├── AppleCalendarAdapter.h/cpp      # Apple Calendar (完整實作)
-│   ├── CalDAVClient.h/cpp     # CalDAV 客戶端
-│   ├── GoogleCalendarAdapter.h/cpp     # Google Calendar (佔位符)
-│   └── OutlookCalendarAdapter.h/cpp    # Outlook (佔位符)
+│   ├── GoogleCalendarAdapter.h/cpp     # Google Calendar
+│   └── OutlookCalendarAdapter.h/cpp    # Outlook
 └── storage/                    # 儲存模組
     └── DatabaseManager.h/cpp  # SQLite 資料庫管理
 ```
@@ -30,10 +28,8 @@ src/
 ### Adapters（適配器模組）
 
 - **CalendarAdapter**: 所有平台適配器的抽象基類
-- **AppleCalendarAdapter**: Apple Calendar (iCloud) 完整實作，使用 CalDAV
-- **CalDAVClient**: CalDAV 協議客戶端，處理 HTTP 請求和 XML 解析
-- **GoogleCalendarAdapter**: Google Calendar 適配器（待實作）
-- **OutlookCalendarAdapter**: Microsoft Outlook 適配器（待實作）
+- **GoogleCalendarAdapter**: Google Calendar 適配器
+- **OutlookCalendarAdapter**: Microsoft Outlook 適配器
 
 ### Storage（儲存模組）
 
@@ -43,8 +39,6 @@ src/
 
 ```
 CalendarManager
-    ├── AppleCalendarAdapter (CalendarAdapter)
-    │   └── CalDAVClient
     ├── GoogleCalendarAdapter (CalendarAdapter)
     └── OutlookCalendarAdapter (CalendarAdapter)
 
@@ -54,9 +48,8 @@ DatabaseManager (獨立)
 ## 快速開始
 
 1. 檢視 [TESTING.md](../TESTING.md) 了解建置和測試步驟
-2. 編輯 `main.cpp` 設定您的 Apple ID 認證資訊
-3. 使用 CMake 建置專案
-4. 執行 CalendarIntegration
+2. 使用 CMake 建置專案
+3. 執行 CalendarIntegration
 
 ## 擴展指南
 
@@ -91,23 +84,13 @@ public:
 
 ## 技術細節
 
-### CalDAV 實作
-
-AppleCalendarAdapter 使用標準的 CalDAV 協議：
-
-- **PROPFIND**: 發現行事曆列表
-- **REPORT**: 查詢事件
-- **HTTP Basic Auth**: 使用應用程式專用密碼認證
-
 ### 資料流
 
 1. 使用者執行程式
-2. AppleCalendarAdapter 透過 CalDAVClient 連接 iCloud
-3. CalDAVClient 發送 PROPFIND 請求列出行事曆
-4. CalDAVClient 發送 REPORT 請求獲取事件
-5. 解析 iCalendar 格式的事件資料
-6. 事件透過信號傳遞給 CalendarManager
-7. DatabaseManager 將事件儲存到本地資料庫
+2. 各適配器透過 OAuth 2.0 連接到對應的服務
+3. 獲取事件並解析為 CalendarEvent 物件
+4. 事件透過信號傳遞給 CalendarManager
+5. DatabaseManager 將事件儲存到本地資料庫
 
 ## 授權
 

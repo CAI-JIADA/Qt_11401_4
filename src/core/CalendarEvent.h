@@ -8,7 +8,6 @@
 // 平台類型列舉
 enum class Platform {
     Google,
-    Apple,
     Outlook
 };
 

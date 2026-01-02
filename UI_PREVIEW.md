@@ -319,7 +319,7 @@ MainWindow::onEventsUpdated(events)
 - ✅ 新增/編輯/刪除事件
 - ✅ 設定提醒
 - ✅ 行事曆顏色自訂
-- ✅ 更多平台整合（Apple Calendar）
+- ✅ 更多平台整合
 - ✅ 匯出功能（iCal 格式）
 - ✅ 離線模式
 - ✅ 同步狀態指示器

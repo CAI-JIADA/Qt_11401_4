@@ -151,7 +151,7 @@ GoogleAdapter / OutlookAdapter (OAuth + API 呼叫)
 
 依照需求，以下功能已排除：
 
-- ❌ Apple Calendar 整合（因設備問題暫時排除）
+- ❌ Apple Calendar 整合（已移除）
 
 ## 環境需求
 
