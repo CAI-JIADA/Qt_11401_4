@@ -19,7 +19,8 @@ QT += core gui network sql widgets
 #   sudo dnf install qt6-qtnetworkauth-devel
 #
 # macOS:
-#   Install via Qt online installer or: brew install qt-networkauth
+#   Install via Qt online installer (NetworkAuth included with Qt 6)
+#   or with Homebrew: brew install qt@6
 #
 # After installation, restart Qt Creator and rebuild the project.
 
