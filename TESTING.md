@@ -403,6 +403,7 @@ brew reinstall qt@6
 **注意事項：**
 - Microsoft Azure AD 對重新導向 URI 的格式非常嚴格，必須完全匹配（包括是否有結尾斜線）
 - 應用程式已更新為使用 `setModifyParametersFunction` 明確設定 `redirect_uri` 參數為 `http://localhost:8081/`
+- `redirect_uri` 在授權請求和令牌交換兩個階段都會被正確設定
 - 必須確保 Azure AD 註冊的 URI 與程式碼中設定的完全一致
 
 ### Q3: 無法獲取事件

@@ -57,8 +57,9 @@ void OutlookCalendarAdapter::setupOAuth() {
     
     // 明確設定 redirect_uri 參數以確保與 Azure AD 註冊的 URI 完全匹配
     m_oauth->setModifyParametersFunction([](QAbstractOAuth::Stage stage, QMultiMap<QString, QVariant>* parameters) {
-        if (stage == QAbstractOAuth::Stage::RequestingAuthorization) {
-            // 確保 redirect_uri 使用正確的格式（包含結尾斜線）
+        if (stage == QAbstractOAuth::Stage::RequestingAuthorization || 
+            stage == QAbstractOAuth::Stage::RequestingAccessToken) {
+            // 確保 redirect_uri 在授權和令牌交換階段都使用正確的格式（包含結尾斜線）
             parameters->replace("redirect_uri", "http://localhost:8081/");
         }
     });
