@@ -41,10 +41,4 @@ Qt 多平台行事曆整合工具 - 整合 Google、Outlook 行事曆的待辦�
    - 選擇 `CMakeLists.txt` 檔案
    - 配置 CMake 並開始建置
 
-#### 開發說明
 
-請參閱 [IMPLEMENTATION.md](IMPLEMENTATION.md) 了解完整的實作指南和技術需求。
-
-## 授權
-
-MIT License
