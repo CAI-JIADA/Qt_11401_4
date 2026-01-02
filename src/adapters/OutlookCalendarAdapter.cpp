@@ -51,6 +51,7 @@ void OutlookCalendarAdapter::setupOAuth() {
         delete m_replyHandler;
     }
     m_replyHandler = new QOAuthHttpServerReplyHandler(8081, this);
+    m_replyHandler->setCallbackPath("/");  // 明確設定回調路徑為根路徑
     m_oauth->setReplyHandler(m_replyHandler);
     
     connect(m_oauth, &QOAuth2AuthorizationCodeFlow::granted,

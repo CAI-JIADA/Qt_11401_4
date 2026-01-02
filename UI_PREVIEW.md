@@ -172,7 +172,7 @@
    ↓
 6. 使用者點選「接受」
    ↓
-7. Microsoft 重定向到 http://localhost:8081
+7. Microsoft 重定向到 http://localhost:8081/
    ↓
 8. 本地伺服器接收授權碼
    ↓
