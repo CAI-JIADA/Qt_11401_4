@@ -7,6 +7,7 @@ QT += core gui network sql widgets
 # - Linux: Install libqt6networkauth6-dev or qt6-networkauth package
 # - macOS: Install via Homebrew or Qt online installer
 # Note: Some Qt installations may not include NetworkAuth by default
+# Note: CMakeLists.txt requires NetworkAuth - this .pro file makes it optional for convenience
 qtHaveModule(networkauth) {
     QT += networkauth
     message("Qt NetworkAuth module found")
