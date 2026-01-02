@@ -7,6 +7,7 @@
 #include <QNetworkReply>
 #include <QUrlQuery>
 #include <QDateTime>
+#include <QAbstractOAuth>
 
 GoogleCalendarAdapter::GoogleCalendarAdapter(QObject* parent)
     : CalendarAdapter(parent)
@@ -45,7 +46,17 @@ void GoogleCalendarAdapter::setupOAuth() {
         delete m_replyHandler;
     }
     m_replyHandler = new QOAuthHttpServerReplyHandler(8080, this);
+    m_replyHandler->setCallbackPath("/");  // 明確設定回調路徑為根路徑
     m_oauth->setReplyHandler(m_replyHandler);
+    
+    // 明確設定 redirect_uri 參數以確保與 Google Cloud 註冊的 URI 完全匹配
+    m_oauth->setModifyParametersFunction([](QAbstractOAuth::Stage stage, QMultiMap<QString, QVariant>* parameters) {
+        if (stage == QAbstractOAuth::Stage::RequestingAuthorization || 
+            stage == QAbstractOAuth::Stage::RequestingAccessToken) {
+            // 確保 redirect_uri 在授權和令牌交換階段都使用正確的格式（包含結尾斜線）
+            parameters->replace("redirect_uri", "http://localhost:8080/");
+        }
+    });
     
     connect(m_oauth, &QOAuth2AuthorizationCodeFlow::granted,
             this, &GoogleCalendarAdapter::onAuthenticationGranted);
