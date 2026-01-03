@@ -482,13 +482,18 @@ void MainWindow::applyBackgroundImage() {
         return;
     }
     
-    // 套用背景圖片
+    // 套用背景圖片：拉伸至視窗同比例並淡化
+    // background-size: cover 會拉伸圖片以覆蓋整個容器，保持比例
+    // 使用半透明白色線性漸層遮罩來淡化背景圖片
     QString styleSheet = QString(
         "QWidget#centralWidget {"
-        "    background-image: url(%1);"
-        "    background-position: center;"
+        "    background-image: "
+        "        linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)), "
+        "        url(%1);"
+        "    background-position: center center;"
         "    background-repeat: no-repeat;"
         "    background-attachment: fixed;"
+        "    background-size: cover, cover;"
         "}"
     ).arg(imagePath);
     
