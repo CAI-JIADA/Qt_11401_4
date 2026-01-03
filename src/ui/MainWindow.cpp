@@ -12,6 +12,7 @@
 #include <QAction>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QFile>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
