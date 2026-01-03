@@ -227,7 +227,7 @@ set OUTLOOK_CLIENT_SECRET=YOUR_CLIENT_SECRET
 3. 在「授權的重新導向 URI」中確保有：`http://localhost:8080/`（**必須包含結尾的 /** ）
 4. 儲存並重新啟動應用程式
 
-**詳細說明：** 請參閱 [OAUTH_TROUBLESHOOTING.md](./OAUTH_TROUBLESHOOTING.md#-錯誤-400-redirect_uri_mismatch---google-calendar)
+**詳細說明：** 請參閱 [OAUTH_TROUBLESHOOTING.md - Google Calendar 錯誤](./OAUTH_TROUBLESHOOTING.md)
 
 ---
 
@@ -263,7 +263,7 @@ brew reinstall qt@6
 4. 如果已經存在 `http://localhost:8081`（無斜線），請刪除並重新新增 `http://localhost:8081/`（含斜線）
 5. 點選「儲存」並重新啟動應用程式
 
-**詳細說明：** 請參閱 [OAUTH_TROUBLESHOOTING.md](./OAUTH_TROUBLESHOOTING.md#-錯誤-invalid_request-redirect_uri-is-not-valid---microsoft-outlook)
+**詳細說明：** 請參閱 [OAUTH_TROUBLESHOOTING.md - Microsoft Outlook 錯誤](./OAUTH_TROUBLESHOOTING.md)
 
 **注意事項：**
 - Microsoft Azure AD 對重新導向 URI 的格式非常嚴格，必須完全匹配（包括是否有結尾斜線）
@@ -292,6 +292,6 @@ brew reinstall qt@6
 
 ---
 
-**最後更新**: 2024 年 12 月
+**最後更新**: 2026 年 1 月
 
 **版本**: 2.0.0

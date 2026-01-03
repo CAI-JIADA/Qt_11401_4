@@ -1,4 +1,4 @@
-# Calender
+# Calendar
 
 Qt 多平台行事曆整合工具 - 整合 Google、Outlook 行事曆的待辦事項管理工具
 
