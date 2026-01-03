@@ -28,6 +28,7 @@ set(SOURCES
     src/adapters/OutlookCalendarAdapter.cpp
     src/storage/DatabaseManager.cpp
     src/ui/MainWindow.cpp
+    src/ui/ChangeLogDialog.cpp
 )
 
 set(HEADERS
@@ -38,6 +39,7 @@ set(HEADERS
     src/adapters/OutlookCalendarAdapter.h
     src/storage/DatabaseManager.h
     src/ui/MainWindow.h
+    src/ui/ChangeLogDialog.h
 )
 
 # 執行檔

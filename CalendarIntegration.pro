@@ -43,7 +43,8 @@ SOURCES += \
     src/adapters/GoogleCalendarAdapter.cpp \
     src/adapters/OutlookCalendarAdapter.cpp \
     src/storage/DatabaseManager.cpp \
-    src/ui/MainWindow.cpp
+    src/ui/MainWindow.cpp \
+    src/ui/ChangeLogDialog.cpp
 
 # 標頭檔案
 HEADERS += \
@@ -53,7 +54,8 @@ HEADERS += \
     src/adapters/GoogleCalendarAdapter.h \
     src/adapters/OutlookCalendarAdapter.h \
     src/storage/DatabaseManager.h \
-    src/ui/MainWindow.h
+    src/ui/MainWindow.h \
+    src/ui/ChangeLogDialog.h
 
 # Include 目錄
 INCLUDEPATH += $$PWD/src

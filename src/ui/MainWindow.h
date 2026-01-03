@@ -32,12 +32,15 @@ private slots:
     void onErrorOccurred(const QString& error);
     void onGoogleAuthenticated();
     void onOutlookAuthenticated();
+    void onViewChangeLogClicked();
+    void onChangeBackgroundClicked();
     
 private:
     void setupUI();
     void updateEventList(const QList<CalendarEvent>& events);
     void showEventDetails(const CalendarEvent& event);
     void updateStatusBar(const QString& message);
+    void applyBackgroundImage();
     
     // UI 元件
     QWidget* m_centralWidget;

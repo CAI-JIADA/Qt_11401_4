@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "ChangeLogDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -9,6 +10,8 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
+#include <QFileDialog>
+#include <QStandardPaths>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -41,6 +44,9 @@ MainWindow::MainWindow(QWidget* parent)
     
     setupUI();
     
+    // 載入並套用背景圖片
+    applyBackgroundImage();
+    
     updateStatusBar("就緒 - 請先進行帳號認證");
 }
 
@@ -57,6 +63,21 @@ void MainWindow::setupUI() {
     QMenu* fileMenu = menuBar->addMenu("檔案");
     QAction* exitAction = fileMenu->addAction("結束");
     connect(exitAction, &QAction::triggered, this, &QMainWindow::close);
+    
+    QMenu* viewMenu = menuBar->addMenu("檢視");
+    QAction* changeLogAction = viewMenu->addAction("修改紀錄 / 版本歷史");
+    connect(changeLogAction, &QAction::triggered, this, &MainWindow::onViewChangeLogClicked);
+    
+    QMenu* settingsMenu = menuBar->addMenu("設定");
+    QAction* changeBackgroundAction = settingsMenu->addAction("更改背景圖片");
+    connect(changeBackgroundAction, &QAction::triggered, this, &MainWindow::onChangeBackgroundClicked);
+    
+    QAction* resetBackgroundAction = settingsMenu->addAction("重設背景");
+    connect(resetBackgroundAction, &QAction::triggered, [this]() {
+        m_dbManager->saveSetting("background_image", "");
+        applyBackgroundImage();
+        QMessageBox::information(this, "成功", "背景已重設為預設樣式");
+    });
     
     QMenu* helpMenu = menuBar->addMenu("說明");
     QAction* aboutAction = helpMenu->addAction("關於");
@@ -421,4 +442,55 @@ void MainWindow::showEventDetails(const CalendarEvent& event) {
 void MainWindow::updateStatusBar(const QString& message) {
     m_statusLabel->setText(message);
     statusBar()->showMessage(message, 3000);
+}
+
+void MainWindow::onViewChangeLogClicked() {
+    ChangeLogDialog dialog(m_dbManager, this);
+    dialog.exec();
+}
+
+void MainWindow::onChangeBackgroundClicked() {
+    QString picturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    
+    QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "選擇背景圖片",
+        picturesPath,
+        "圖片檔案 (*.png *.jpg *.jpeg *.bmp *.gif);;所有檔案 (*.*)"
+    );
+    
+    if (filePath.isEmpty()) {
+        return;  // 使用者取消
+    }
+    
+    // 儲存圖片路徑到設定
+    if (m_dbManager->saveSetting("background_image", filePath)) {
+        applyBackgroundImage();
+        QMessageBox::information(this, "成功", "背景圖片已更新！");
+    } else {
+        QMessageBox::warning(this, "錯誤", "無法儲存背景圖片設定");
+    }
+}
+
+void MainWindow::applyBackgroundImage() {
+    QString imagePath = m_dbManager->loadSetting("background_image", "");
+    
+    if (imagePath.isEmpty() || !QFile::exists(imagePath)) {
+        // 使用預設樣式（無背景圖片）
+        m_centralWidget->setStyleSheet("");
+        return;
+    }
+    
+    // 套用背景圖片
+    QString styleSheet = QString(
+        "QWidget#centralWidget {"
+        "    background-image: url(%1);"
+        "    background-position: center;"
+        "    background-repeat: no-repeat;"
+        "    background-attachment: fixed;"
+        "}"
+    ).arg(imagePath);
+    
+    m_centralWidget->setObjectName("centralWidget");
+    m_centralWidget->setStyleSheet(styleSheet);
 }
