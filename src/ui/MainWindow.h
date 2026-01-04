@@ -6,6 +6,8 @@
 #include "adapters/OutlookCalendarAdapter.h"
 #include "storage/DatabaseManager.h"
 
+class QListWidgetItem;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE

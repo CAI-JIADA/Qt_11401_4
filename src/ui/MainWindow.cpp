@@ -3,6 +3,11 @@
 #include <QMessageBox>
 #include <QDate>
 #include <QTime>
+#include <QDateTime>
+#include <QTreeWidgetItem>
+#include <QListWidgetItem>
+#include <QColor>
+#include <QIcon>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
